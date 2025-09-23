@@ -1,0 +1,141 @@
+{
+  "name": "Library Wing",
+  "rooms": [
+    {
+      "id": "library",
+      "title": "Dustlit Library",
+      "description": "Shelves lean with the weight of forgotten ideas. A faint smell of paper and ozone. Passages branch to specialized wings and an old stairwell spirals upward.",
+      "exits": {
+        "e": "scriptorium",
+        "n": "astral_gallery",
+        "s": "start",
+        "u": "observatory"
+      }
+    },
+    {
+      "id": "scriptorium",
+      "title": "Scriptorium of Murmured Ink",
+      "description": "Tall lecterns cradle scrolls that write themselves, quills whispering secrets of visitors past.",
+      "exits": {
+        "e": "illumination_studio",
+        "s": "ink_garden",
+        "w": "library"
+      }
+    },
+    {
+      "id": "illumination_studio",
+      "title": "Illumination Studio",
+      "description": "Gold leaf dust floats in sunshafts while automatons patiently gild every margin in sight.",
+      "exits": {
+        "n": "glyph_vault",
+        "s": "ink_garden",
+        "w": "scriptorium"
+      }
+    },
+    {
+      "id": "glyph_vault",
+      "title": "Vault of Glyphs",
+      "description": "Shelves of rune-carved stones hum softly, rearranging into new phrases when no one watches.",
+      "exits": {
+        "s": "illumination_studio",
+        "w": "ink_garden"
+      }
+    },
+    {
+      "id": "ink_garden",
+      "title": "Garden of Living Ink",
+      "description": "Vines bloom with characters that drip like dew, spelling compliments to anyone who lingers.",
+      "exits": {
+        "e": "glyph_vault",
+        "n": "scriptorium",
+        "w": "atelier_dormitory"
+      }
+    },
+    {
+      "id": "astral_gallery",
+      "title": "Astral Gallery",
+      "description": "Paintings of distant nebulae pulse in real time, sharing borrowed starlight with the hall.",
+      "exits": {
+        "e": "planetarium",
+        "s": "library",
+        "w": "memory_chapel"
+      }
+    },
+    {
+      "id": "planetarium",
+      "title": "Clockwork Planetarium",
+      "description": "Brass constellations spin overhead, projecting constellations that occasionally wink back.",
+      "exits": {
+        "u": "celestial_walkway",
+        "w": "astral_gallery"
+      }
+    },
+    {
+      "id": "memory_chapel",
+      "title": "Chapel of Echoed Memory",
+      "description": "Benches face empty air where voices gather, replaying gratitude offered by travelers long gone.",
+      "exits": {
+        "d": "echo_archive",
+        "e": "astral_gallery"
+      }
+    },
+    {
+      "id": "echo_archive",
+      "title": "Echo Archive",
+      "description": "Rows of crystal cylinders capture laughter, arguments, and lullabies awaiting a new audience.",
+      "exits": {
+        "u": "memory_chapel"
+      }
+    },
+    {
+      "id": "observatory",
+      "title": "Windworn Observatory",
+      "description": "An aged telescope peers through a ragged aperture; faint comets leave notes in its ledger.",
+      "exits": {
+        "d": "library",
+        "e": "celestial_walkway",
+        "n": "skybridge"
+      }
+    },
+    {
+      "id": "celestial_walkway",
+      "title": "Celestial Walkway",
+      "description": "A glass-floored bridge floats through a pocket of gravity, stars drifting lazily beneath your boots.",
+      "exits": {
+        "d": "planetarium",
+        "e": "skybridge",
+        "w": "observatory"
+      }
+    },
+    {
+      "id": "skybridge",
+      "title": "Skybridge of Lanterns",
+      "description": "Wind-bells stitched from constellations chime, guiding wanderers toward higher, brighter places.",
+      "exits": {
+        "e": "balloon_roost",
+        "n": "cloud_dock",
+        "s": "observatory",
+        "w": "celestial_walkway"
+      }
+    },
+    {
+      "id": "cloud_dock",
+      "title": "Cloud Dock",
+      "description": "Tethers secure zephyrs like ships, each labeled with a destination written in vapor.",
+      "exits": {
+        "d": "harbor_lighthouse",
+        "s": "skybridge",
+        "w": "clocktower_belfry"
+      }
+    },
+    {
+      "id": "balloon_roost",
+      "title": "Balloon Roost",
+      "description": "Deflated exploration balloons roost like sleeping birds, dreaming of tomorrow's discoveries.",
+      "exits": {
+        "s": "loft",
+        "w": "skybridge"
+      }
+    }
+  ]
+}

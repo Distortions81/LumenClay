@@ -1,0 +1,16 @@
+{
+  "name": "World Entrance",
+  "rooms": [
+    {
+      "id": "start",
+      "title": "Worn Stone Landing",
+      "description": "You stand on a time-polished stone platform. Four archways lead to shadowed corridors: north (the library), east (the workshop), south (the garden), west (the market).",
+      "exits": {
+        "e": "workshop",
+        "n": "library",
+        "s": "garden",
+        "w": "market"
+      }
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "name": "Market District",
+  "rooms": [
+    {
+      "id": "market",
+      "title": "Silent Market",
+      "description": "Stalls stand ready for traders that never quite arrive.",
+      "exits": {
+        "d": "vaulted_storage",
+        "e": "start",
+        "n": "parade",
+        "s": "harbor",
+        "w": "clocktower"
+      }
+    },
+    {
+      "id": "clocktower",
+      "title": "Clocktower Plaza",
+      "description": "Bronze numerals circle overhead, raining punctuality on anyone who lingers too long.",
+      "exits": {
+        "e": "market",
+        "u": "clocktower_belfry",
+        "w": "gearworks"
+      }
+    },
+    {
+      "id": "clocktower_belfry",
+      "title": "Clocktower Belfry",
+      "description": "Giant chimes hang silent between beats, storing up the next note like a held breath.",
+      "exits": {
+        "d": "clocktower",
+        "e": "cloud_dock"
+      }
+    },
+    {
+      "id": "parade",
+      "title": "Parade Concourse",
+      "description": "Banners ripple despite the still air, rehearsing applause for the next celebration.",
+      "exits": {
+        "e": "lantern_row",
+        "n": "festival_stage",
+        "s": "market",
+        "w": "whispering_alley"
+      }
+    },
+    {
+      "id": "festival_stage",
+      "title": "Festival Stage",
+      "description": "A polished wooden stage awaits performers, enchanted spotlights following whoever dares step up.",
+      "exits": {
+        "s": "parade"
+      }
+    },
+    {
+      "id": "lantern_row",
+      "title": "Lantern Row",
+      "description": "Paper lanterns float at shoulder height, escorting wanderers between market and garden paths.",
+      "exits": {
+        "e": "atelier_dormitory",
+        "s": "glasshouse",
+        "w": "parade"
+      }
+    },
+    {
+      "id": "whispering_alley",
+      "title": "Whispering Alley",
+      "description": "Shuttered stalls gossip quietly, trading secrets as casually as coins.",
+      "exits": {
+        "e": "parade",
+        "n": "shadow_vault"
+      }
+    },
+    {
+      "id": "harbor",
+      "title": "Harbor of Gentle Tides",
+      "description": "Bioluminescent currents lap at rune-carved docks where tide charts hum reassuring lullabies.",
+      "exits": {
+        "e": "serpent_bridge",
+        "n": "market",
+        "s": "tidal_library",
+        "w": "harbor_lighthouse"
+      }
+    },
+    {
+      "id": "harbor_lighthouse",
+      "title": "Harbor Lighthouse",
+      "description": "A spiral beacon spins quiet halos, guiding both ships and errant daydreams back to shore.",
+      "exits": {
+        "e": "harbor",
+        "u": "cloud_dock"
+      }
+    },
+    {
+      "id": "vaulted_storage",
+      "title": "Vaulted Storage",
+      "description": "Crates levitate just above the floor, labeled in tidy handwriting that rearranges itself.",
+      "exits": {
+        "s": "shadow_vault",
+        "u": "market"
+      }
+    },
+    {
+      "id": "shadow_vault",
+      "title": "Shadow Vault",
+      "description": "Cool darkness keeps rare curios safe; shadows queue patiently to be borrowed for disguises.",
+      "exits": {
+        "n": "vaulted_storage",
+        "s": "whispering_alley",
+        "w": "catacomb_nursery"
+      }
+    }
+  ]
+}
