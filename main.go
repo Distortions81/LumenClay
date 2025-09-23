@@ -355,38 +355,286 @@ func NewWorld() *World {
 }
 
 func defaultRooms() map[RoomID]*Room {
-	rooms := map[RoomID]*Room{}
-	rooms["start"] = &Room{
-		ID:    "start",
-		Title: "Worn Stone Landing",
-		Description: "You stand on a time-polished stone platform. " +
-			"Four archways lead to shadowed corridors: north (the library), " +
-			"east (the workshop), south (the garden), west (the market).",
-		Exits: map[string]RoomID{"n": "library", "e": "workshop", "s": "garden", "w": "market"},
-	}
-	rooms["library"] = &Room{
-		ID:          "library",
-		Title:       "Dustlit Library",
-		Description: "Shelves lean with the weight of forgotten ideas. A faint smell of paper and ozone.",
-		Exits:       map[string]RoomID{"s": "start"},
-	}
-	rooms["workshop"] = &Room{
-		ID:          "workshop",
-		Title:       "Crackle Workshop",
-		Description: "Benches, tools, and half-built contraptions hum with patient possibility.",
-		Exits:       map[string]RoomID{"w": "start"},
-	}
-	rooms["garden"] = &Room{
-		ID:          "garden",
-		Title:       "Night Garden",
-		Description: "Bioluminescent vines twine overhead. Footsteps hush on moss.",
-		Exits:       map[string]RoomID{"n": "start"},
-	}
-	rooms["market"] = &Room{
-		ID:          "market",
-		Title:       "Silent Market",
-		Description: "Stalls stand ready for traders that never quite arrive.",
-		Exits:       map[string]RoomID{"e": "start"},
+	rooms := map[RoomID]*Room{
+		"start": {
+			ID:    "start",
+			Title: "Worn Stone Landing",
+			Description: "You stand on a time-polished stone platform. " +
+				"Four archways lead to shadowed corridors: north (the library), " +
+				"east (the workshop), south (the garden), west (the market).",
+			Exits: map[string]RoomID{"n": "library", "e": "workshop", "s": "garden", "w": "market"},
+		},
+		"library": {
+			ID:    "library",
+			Title: "Dustlit Library",
+			Description: "Shelves lean with the weight of forgotten ideas. A faint smell of paper and ozone. " +
+				"Passages branch to specialized wings and an old stairwell spirals upward.",
+			Exits: map[string]RoomID{"s": "start", "e": "scriptorium", "n": "astral_gallery", "u": "observatory"},
+		},
+		"scriptorium": {
+			ID:          "scriptorium",
+			Title:       "Scriptorium of Murmured Ink",
+			Description: "Tall lecterns cradle scrolls that write themselves, quills whispering secrets of visitors past.",
+			Exits:       map[string]RoomID{"w": "library", "e": "illumination_studio", "s": "ink_garden"},
+		},
+		"illumination_studio": {
+			ID:          "illumination_studio",
+			Title:       "Illumination Studio",
+			Description: "Gold leaf dust floats in sunshafts while automatons patiently gild every margin in sight.",
+			Exits:       map[string]RoomID{"w": "scriptorium", "n": "glyph_vault", "s": "ink_garden"},
+		},
+		"glyph_vault": {
+			ID:          "glyph_vault",
+			Title:       "Vault of Glyphs",
+			Description: "Shelves of rune-carved stones hum softly, rearranging into new phrases when no one watches.",
+			Exits:       map[string]RoomID{"s": "illumination_studio", "w": "ink_garden"},
+		},
+		"ink_garden": {
+			ID:          "ink_garden",
+			Title:       "Garden of Living Ink",
+			Description: "Vines bloom with characters that drip like dew, spelling compliments to anyone who lingers.",
+			Exits:       map[string]RoomID{"n": "scriptorium", "e": "glyph_vault", "w": "atelier_dormitory"},
+		},
+		"astral_gallery": {
+			ID:          "astral_gallery",
+			Title:       "Astral Gallery",
+			Description: "Paintings of distant nebulae pulse in real time, sharing borrowed starlight with the hall.",
+			Exits:       map[string]RoomID{"s": "library", "e": "planetarium", "w": "memory_chapel"},
+		},
+		"planetarium": {
+			ID:          "planetarium",
+			Title:       "Clockwork Planetarium",
+			Description: "Brass constellations spin overhead, projecting constellations that occasionally wink back.",
+			Exits:       map[string]RoomID{"w": "astral_gallery", "u": "celestial_walkway"},
+		},
+		"memory_chapel": {
+			ID:          "memory_chapel",
+			Title:       "Chapel of Echoed Memory",
+			Description: "Benches face empty air where voices gather, replaying gratitude offered by travelers long gone.",
+			Exits:       map[string]RoomID{"e": "astral_gallery", "d": "echo_archive"},
+		},
+		"echo_archive": {
+			ID:          "echo_archive",
+			Title:       "Echo Archive",
+			Description: "Rows of crystal cylinders capture laughter, arguments, and lullabies awaiting a new audience.",
+			Exits:       map[string]RoomID{"u": "memory_chapel"},
+		},
+		"observatory": {
+			ID:          "observatory",
+			Title:       "Windworn Observatory",
+			Description: "An aged telescope peers through a ragged aperture; faint comets leave notes in its ledger.",
+			Exits:       map[string]RoomID{"d": "library", "e": "celestial_walkway", "n": "skybridge"},
+		},
+		"celestial_walkway": {
+			ID:          "celestial_walkway",
+			Title:       "Celestial Walkway",
+			Description: "A glass-floored bridge floats through a pocket of gravity, stars drifting lazily beneath your boots.",
+			Exits:       map[string]RoomID{"w": "observatory", "d": "planetarium", "e": "skybridge"},
+		},
+		"skybridge": {
+			ID:          "skybridge",
+			Title:       "Skybridge of Lanterns",
+			Description: "Wind-bells stitched from constellations chime, guiding wanderers toward higher, brighter places.",
+			Exits:       map[string]RoomID{"s": "observatory", "w": "celestial_walkway", "n": "cloud_dock", "e": "balloon_roost"},
+		},
+		"cloud_dock": {
+			ID:          "cloud_dock",
+			Title:       "Cloud Dock",
+			Description: "Tethers secure zephyrs like ships, each labeled with a destination written in vapor.",
+			Exits:       map[string]RoomID{"s": "skybridge", "d": "harbor_lighthouse", "w": "clocktower_belfry"},
+		},
+		"balloon_roost": {
+			ID:          "balloon_roost",
+			Title:       "Balloon Roost",
+			Description: "Deflated exploration balloons roost like sleeping birds, dreaming of tomorrow's discoveries.",
+			Exits:       map[string]RoomID{"w": "skybridge", "s": "loft"},
+		},
+		"workshop": {
+			ID:          "workshop",
+			Title:       "Crackle Workshop",
+			Description: "Benches, tools, and half-built contraptions hum with patient possibility.",
+			Exits:       map[string]RoomID{"w": "start", "n": "gearworks", "e": "forge", "s": "atelier_dormitory", "u": "loft"},
+		},
+		"gearworks": {
+			ID:          "gearworks",
+			Title:       "Gearworks Atrium",
+			Description: "Floor-to-ceiling cogs lazily rotate in polite applause for every tinkerer who passes by.",
+			Exits:       map[string]RoomID{"s": "workshop", "w": "clocktower", "e": "cogspring"},
+		},
+		"cogspring": {
+			ID:          "cogspring",
+			Title:       "Cogspring Well",
+			Description: "A vertical fountain of gears trickles oil like water, powering hidden machines below.",
+			Exits:       map[string]RoomID{"w": "gearworks", "d": "submerged_lab"},
+		},
+		"submerged_lab": {
+			ID:          "submerged_lab",
+			Title:       "Submerged Laboratory",
+			Description: "Aquarium walls reveal experiments performed in bubbles, with fish wearing monocles taking notes.",
+			Exits:       map[string]RoomID{"u": "cogspring"},
+		},
+		"forge": {
+			ID:          "forge",
+			Title:       "Volcanic Forge",
+			Description: "Anvils glow a gentle cherry red while sparks sketch blue afterimages in the air.",
+			Exits:       map[string]RoomID{"w": "workshop", "n": "heat_cradle", "e": "smoke_garden"},
+		},
+		"heat_cradle": {
+			ID:          "heat_cradle",
+			Title:       "Heat Cradle",
+			Description: "A suspended iron hammock radiates cozy warmth, perfect for incubating daring ideas.",
+			Exits:       map[string]RoomID{"s": "forge"},
+		},
+		"smoke_garden": {
+			ID:          "smoke_garden",
+			Title:       "Smoke Garden",
+			Description: "Charcoal hedges puff scented rings that drift toward a cavern mouth below.",
+			Exits:       map[string]RoomID{"w": "forge", "s": "ember_grotto"},
+		},
+		"ember_grotto": {
+			ID:          "ember_grotto",
+			Title:       "Ember Grotto",
+			Description: "Ashen stalactites glow from within, breathing out embers that never quite touch the floor.",
+			Exits:       map[string]RoomID{"n": "smoke_garden", "u": "root_caves"},
+		},
+		"atelier_dormitory": {
+			ID:          "atelier_dormitory",
+			Title:       "Atelier Dormitory",
+			Description: "Hammocks stitched from blueprints sway gently, each muttering half-finished inventions in its sleep.",
+			Exits:       map[string]RoomID{"n": "workshop", "e": "ink_garden", "w": "lantern_row"},
+		},
+		"loft": {
+			ID:          "loft",
+			Title:       "Windborne Loft",
+			Description: "Gauzy curtains billow inward, revealing a balcony stocked with spare wings and parachutes.",
+			Exits:       map[string]RoomID{"d": "workshop", "n": "balloon_roost", "e": "wind_tunnel"},
+		},
+		"wind_tunnel": {
+			ID:          "wind_tunnel",
+			Title:       "Wind Tuning Tunnel",
+			Description: "Pipes shift diameter with each step, harmonizing breezes into melodies of encouragement.",
+			Exits:       map[string]RoomID{"w": "loft"},
+		},
+		"garden": {
+			ID:          "garden",
+			Title:       "Night Garden",
+			Description: "Bioluminescent vines twine overhead. Footsteps hush on moss.",
+			Exits:       map[string]RoomID{"n": "start", "e": "glasshouse", "s": "moonpool", "w": "root_caves", "d": "catacomb_nursery"},
+		},
+		"glasshouse": {
+			ID:          "glasshouse",
+			Title:       "Singing Glasshouse",
+			Description: "Condensation beads chime against crystal panes, watering rows of obedient aurora-flowers.",
+			Exits:       map[string]RoomID{"w": "garden", "e": "rain_maker", "n": "lantern_row"},
+		},
+		"rain_maker": {
+			ID:          "rain_maker",
+			Title:       "Rain Maker's Platform",
+			Description: "A lattice of drums summons gentle rainclouds that politely take turns watering the beds below.",
+			Exits:       map[string]RoomID{"w": "glasshouse"},
+		},
+		"moonpool": {
+			ID:          "moonpool",
+			Title:       "Moonpool Court",
+			Description: "Silver water mirrors twin moons that wink whenever a wish sounds sincere enough.",
+			Exits:       map[string]RoomID{"n": "garden", "e": "mistway", "s": "tidal_library"},
+		},
+		"mistway": {
+			ID:          "mistway",
+			Title:       "Mistway",
+			Description: "Cool fog drifts from stone arch to stone arch, carving ephemeral doorways toward the coast.",
+			Exits:       map[string]RoomID{"w": "moonpool", "e": "serpent_bridge"},
+		},
+		"serpent_bridge": {
+			ID:          "serpent_bridge",
+			Title:       "Serpent Bridge",
+			Description: "A sinuous bridge of woven reeds sways above glowing wetlands alive with distant song.",
+			Exits:       map[string]RoomID{"w": "mistway", "n": "harbor"},
+		},
+		"tidal_library": {
+			ID:          "tidal_library",
+			Title:       "Tidal Library",
+			Description: "Shelves float on chained buoys, rising and falling with the surf while waterproof books gossip.",
+			Exits:       map[string]RoomID{"n": "harbor", "w": "moonpool"},
+		},
+		"root_caves": {
+			ID:          "root_caves",
+			Title:       "Root Caves",
+			Description: "Massive roots braid into tunnels lit by fireflies who take attendance of every visitor.",
+			Exits:       map[string]RoomID{"e": "garden", "d": "ember_grotto"},
+		},
+		"catacomb_nursery": {
+			ID:          "catacomb_nursery",
+			Title:       "Catacomb Nursery",
+			Description: "Clay cradles line alcoves, each nurturing a sapling soul to be replanted in the daylight above.",
+			Exits:       map[string]RoomID{"u": "garden", "e": "shadow_vault"},
+		},
+		"market": {
+			ID:          "market",
+			Title:       "Silent Market",
+			Description: "Stalls stand ready for traders that never quite arrive.",
+			Exits:       map[string]RoomID{"e": "start", "w": "clocktower", "n": "parade", "s": "harbor", "d": "vaulted_storage"},
+		},
+		"clocktower": {
+			ID:          "clocktower",
+			Title:       "Clocktower Plaza",
+			Description: "Bronze numerals circle overhead, raining punctuality on anyone who lingers too long.",
+			Exits:       map[string]RoomID{"e": "market", "w": "gearworks", "u": "clocktower_belfry"},
+		},
+		"clocktower_belfry": {
+			ID:          "clocktower_belfry",
+			Title:       "Clocktower Belfry",
+			Description: "Giant chimes hang silent between beats, storing up the next note like a held breath.",
+			Exits:       map[string]RoomID{"d": "clocktower", "e": "cloud_dock"},
+		},
+		"parade": {
+			ID:          "parade",
+			Title:       "Parade Concourse",
+			Description: "Banners ripple despite the still air, rehearsing applause for the next celebration.",
+			Exits:       map[string]RoomID{"s": "market", "n": "festival_stage", "e": "lantern_row", "w": "whispering_alley"},
+		},
+		"festival_stage": {
+			ID:          "festival_stage",
+			Title:       "Festival Stage",
+			Description: "A polished wooden stage awaits performers, enchanted spotlights following whoever dares step up.",
+			Exits:       map[string]RoomID{"s": "parade"},
+		},
+		"lantern_row": {
+			ID:          "lantern_row",
+			Title:       "Lantern Row",
+			Description: "Paper lanterns float at shoulder height, escorting wanderers between market and garden paths.",
+			Exits:       map[string]RoomID{"w": "parade", "e": "atelier_dormitory", "s": "glasshouse"},
+		},
+		"whispering_alley": {
+			ID:          "whispering_alley",
+			Title:       "Whispering Alley",
+			Description: "Shuttered stalls gossip quietly, trading secrets as casually as coins.",
+			Exits:       map[string]RoomID{"e": "parade", "n": "shadow_vault"},
+		},
+		"harbor": {
+			ID:          "harbor",
+			Title:       "Harbor of Gentle Tides",
+			Description: "Bioluminescent currents lap at rune-carved docks where tide charts hum reassuring lullabies.",
+			Exits:       map[string]RoomID{"n": "market", "s": "tidal_library", "e": "serpent_bridge", "w": "harbor_lighthouse"},
+		},
+		"harbor_lighthouse": {
+			ID:          "harbor_lighthouse",
+			Title:       "Harbor Lighthouse",
+			Description: "A spiral beacon spins quiet halos, guiding both ships and errant daydreams back to shore.",
+			Exits:       map[string]RoomID{"e": "harbor", "u": "cloud_dock"},
+		},
+		"vaulted_storage": {
+			ID:          "vaulted_storage",
+			Title:       "Vaulted Storage",
+			Description: "Crates levitate just above the floor, labeled in tidy handwriting that rearranges itself.",
+			Exits:       map[string]RoomID{"u": "market", "s": "shadow_vault"},
+		},
+		"shadow_vault": {
+			ID:          "shadow_vault",
+			Title:       "Shadow Vault",
+			Description: "Cool darkness keeps rare curios safe; shadows queue patiently to be borrowed for disguises.",
+			Exits:       map[string]RoomID{"n": "vaulted_storage", "s": "whispering_alley", "w": "catacomb_nursery"},
+		},
 	}
 	return rooms
 }
@@ -686,8 +934,8 @@ func dispatch(world *World, p *Player, line string) bool {
 			"  who                - list connected players\r\n" +
 			"  name <newname>     - change your display name\r\n" +
 			"  reboot             - reload the world (admin only)\r\n" +
-			"  go <n|s|e|w>       - move by direction\r\n" +
-			"  n/s/e/w            - shorthand for movement\r\n" +
+			"  go <direction>     - move (n/s/e/w/u/d and more)\r\n" +
+			"  n/s/e/w/u/d        - shorthand for movement\r\n" +
 			"  quit               - disconnect"
 		p.Output <- ansi(header + body)
 	case "look", "l":
@@ -750,12 +998,16 @@ func dispatch(world *World, p *Player, line string) bool {
 	case "go":
 		dir := strings.ToLower(strings.TrimSpace(arg))
 		if dir == "" {
-			p.Output <- ansi(style("\r\nUsage: go <n|s|e|w>", ansiYellow))
+			p.Output <- ansi(style("\r\nUsage: go <direction>", ansiYellow))
 			return false
 		}
 		return move(world, p, dir)
-	case "n", "s", "e", "w":
+	case "n", "s", "e", "w", "u", "d":
 		return move(world, p, cmd)
+	case "up":
+		return move(world, p, "u")
+	case "down":
+		return move(world, p, "d")
 	case "quit", "q":
 		p.Output <- ansi("\r\nGoodbye.\r\n")
 		return true
