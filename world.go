@@ -449,7 +449,10 @@ func (w *World) listPlayers(roomOnly bool, room RoomID) []string {
 func (w *World) move(p *Player, dir string) (string, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	r := w.rooms[p.Room]
+	r, ok := w.rooms[p.Room]
+	if !ok {
+		return "", fmt.Errorf("unknown room: %s", p.Room)
+	}
 	next, ok := r.Exits[dir]
 	if !ok {
 		return "", fmt.Errorf("you can't go that way")
