@@ -1,0 +1,108 @@
+{
+  "name": "Workshop Complex",
+  "rooms": [
+    {
+      "id": "workshop",
+      "title": "Crackle Workshop",
+      "description": "Benches, tools, and half-built contraptions hum with patient possibility.",
+      "exits": {
+        "e": "forge",
+        "n": "gearworks",
+        "s": "atelier_dormitory",
+        "u": "loft",
+        "w": "start"
+      }
+    },
+    {
+      "id": "gearworks",
+      "title": "Gearworks Atrium",
+      "description": "Floor-to-ceiling cogs lazily rotate in polite applause for every tinkerer who passes by.",
+      "exits": {
+        "e": "cogspring",
+        "s": "workshop",
+        "w": "clocktower"
+      }
+    },
+    {
+      "id": "cogspring",
+      "title": "Cogspring Well",
+      "description": "A vertical fountain of gears trickles oil like water, powering hidden machines below.",
+      "exits": {
+        "d": "submerged_lab",
+        "w": "gearworks"
+      }
+    },
+    {
+      "id": "submerged_lab",
+      "title": "Submerged Laboratory",
+      "description": "Aquarium walls reveal experiments performed in bubbles, with fish wearing monocles taking notes.",
+      "exits": {
+        "u": "cogspring"
+      }
+    },
+    {
+      "id": "forge",
+      "title": "Volcanic Forge",
+      "description": "Anvils glow a gentle cherry red while sparks sketch blue afterimages in the air.",
+      "exits": {
+        "e": "smoke_garden",
+        "n": "heat_cradle",
+        "w": "workshop"
+      }
+    },
+    {
+      "id": "heat_cradle",
+      "title": "Heat Cradle",
+      "description": "A suspended iron hammock radiates cozy warmth, perfect for incubating daring ideas.",
+      "exits": {
+        "s": "forge"
+      }
+    },
+    {
+      "id": "smoke_garden",
+      "title": "Smoke Garden",
+      "description": "Charcoal hedges puff scented rings that drift toward a cavern mouth below.",
+      "exits": {
+        "s": "ember_grotto",
+        "w": "forge"
+      }
+    },
+    {
+      "id": "ember_grotto",
+      "title": "Ember Grotto",
+      "description": "Ashen stalactites glow from within, breathing out embers that never quite touch the floor.",
+      "exits": {
+        "n": "smoke_garden",
+        "u": "root_caves"
+      }
+    },
+    {
+      "id": "atelier_dormitory",
+      "title": "Atelier Dormitory",
+      "description": "Hammocks stitched from blueprints sway gently, each muttering half-finished inventions in its sleep.",
+      "exits": {
+        "e": "ink_garden",
+        "n": "workshop",
+        "w": "lantern_row"
+      }
+    },
+    {
+      "id": "loft",
+      "title": "Windborne Loft",
+      "description": "Gauzy curtains billow inward, revealing a balcony stocked with spare wings and parachutes.",
+      "exits": {
+        "d": "workshop",
+        "e": "wind_tunnel",
+        "n": "balloon_roost"
+      }
+    },
+    {
+      "id": "wind_tunnel",
+      "title": "Wind Tuning Tunnel",
+      "description": "Pipes shift diameter with each step, harmonizing breezes into melodies of encouragement.",
+      "exits": {
+        "w": "loft"
+      }
+    }
+  ]
+}

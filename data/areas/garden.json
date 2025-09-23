@@ -1,0 +1,90 @@
+{
+  "name": "Garden Grounds",
+  "rooms": [
+    {
+      "id": "garden",
+      "title": "Night Garden",
+      "description": "Bioluminescent vines twine overhead. Footsteps hush on moss.",
+      "exits": {
+        "d": "catacomb_nursery",
+        "e": "glasshouse",
+        "n": "start",
+        "s": "moonpool",
+        "w": "root_caves"
+      }
+    },
+    {
+      "id": "glasshouse",
+      "title": "Singing Glasshouse",
+      "description": "Condensation beads chime against crystal panes, watering rows of obedient aurora-flowers.",
+      "exits": {
+        "e": "rain_maker",
+        "n": "lantern_row",
+        "w": "garden"
+      }
+    },
+    {
+      "id": "rain_maker",
+      "title": "Rain Maker's Platform",
+      "description": "A lattice of drums summons gentle rainclouds that politely take turns watering the beds below.",
+      "exits": {
+        "w": "glasshouse"
+      }
+    },
+    {
+      "id": "moonpool",
+      "title": "Moonpool Court",
+      "description": "Silver water mirrors twin moons that wink whenever a wish sounds sincere enough.",
+      "exits": {
+        "e": "mistway",
+        "n": "garden",
+        "s": "tidal_library"
+      }
+    },
+    {
+      "id": "mistway",
+      "title": "Mistway",
+      "description": "Cool fog drifts from stone arch to stone arch, carving ephemeral doorways toward the coast.",
+      "exits": {
+        "e": "serpent_bridge",
+        "w": "moonpool"
+      }
+    },
+    {
+      "id": "serpent_bridge",
+      "title": "Serpent Bridge",
+      "description": "A sinuous bridge of woven reeds sways above glowing wetlands alive with distant song.",
+      "exits": {
+        "n": "harbor",
+        "w": "mistway"
+      }
+    },
+    {
+      "id": "tidal_library",
+      "title": "Tidal Library",
+      "description": "Shelves float on chained buoys, rising and falling with the surf while waterproof books gossip.",
+      "exits": {
+        "n": "harbor",
+        "w": "moonpool"
+      }
+    },
+    {
+      "id": "root_caves",
+      "title": "Root Caves",
+      "description": "Massive roots braid into tunnels lit by fireflies who take attendance of every visitor.",
+      "exits": {
+        "d": "ember_grotto",
+        "e": "garden"
+      }
+    },
+    {
+      "id": "catacomb_nursery",
+      "title": "Catacomb Nursery",
+      "description": "Clay cradles line alcoves, each nurturing a sapling soul to be replanted in the daylight above.",
+      "exits": {
+        "e": "shadow_vault",
+        "u": "garden"
+      }
+    }
+  ]
+}
