@@ -61,7 +61,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	accounts := NewAccountManager()
+	accounts, err := NewAccountManager("data/accounts.json")
+	if err != nil {
+		panic(err)
+	}
 
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {

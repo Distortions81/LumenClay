@@ -18,6 +18,16 @@ func validateUsername(name string) error {
 	return nil
 }
 
+func validatePassword(password string) error {
+	if password == "" {
+		return fmt.Errorf("password cannot be blank")
+	}
+	if len(password) < 6 {
+		return fmt.Errorf("password must be at least 6 characters")
+	}
+	return nil
+}
+
 func login(session *TelnetSession, accounts *AccountManager) (string, bool, error) {
 	_ = session.WriteString(ansi(style("\r\nLogin required.\r\n", ansiMagenta, ansiBold)))
 	for attempts := 0; attempts < 5; attempts++ {
@@ -56,8 +66,8 @@ func login(session *TelnetSession, accounts *AccountManager) (string, bool, erro
 				return "", false, err
 			}
 			password = trim(password)
-			if password == "" {
-				_ = session.WriteString(ansi(style("\r\nPassword cannot be blank.", ansiYellow)))
+			if err := validatePassword(password); err != nil {
+				_ = session.WriteString(ansi(style("\r\n"+err.Error(), ansiYellow)))
 				continue
 			}
 			if err := accounts.Register(username, password); err != nil {
