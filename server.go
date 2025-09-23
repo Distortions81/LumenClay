@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"time"
@@ -56,7 +57,9 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager) {
 }
 
 func main() {
-	addr := ":4000"
+	addr := flag.String("addr", ":4000", "TCP address to listen on")
+	flag.Parse()
+
 	world, err := NewWorld()
 	if err != nil {
 		panic(err)
@@ -66,11 +69,11 @@ func main() {
 		panic(err)
 	}
 
-	ln, err := net.Listen("tcp", addr)
+	ln, err := net.Listen("tcp", *addr)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("MUD listening on %s (telnet + ANSI ready)\n", addr)
+	fmt.Printf("MUD listening on %s (telnet + ANSI ready)\n", ln.Addr())
 
 	for {
 		conn, err := ln.Accept()
