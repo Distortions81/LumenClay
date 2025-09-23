@@ -294,19 +294,58 @@ type Room struct {
 	Exits       map[string]RoomID // "n","s","e","w", etc.
 }
 
+type Channel string
+
+const (
+	ChannelSay     Channel = "say"
+	ChannelWhisper Channel = "whisper"
+	ChannelYell    Channel = "yell"
+	ChannelOOC     Channel = "ooc"
+)
+
+var allChannels = []Channel{ChannelSay, ChannelWhisper, ChannelYell, ChannelOOC}
+
+var channelLookup = map[string]Channel{
+	"say":     ChannelSay,
+	"whisper": ChannelWhisper,
+	"yell":    ChannelYell,
+	"ooc":     ChannelOOC,
+}
+
 type Player struct {
-	Name    string
-	Session *TelnetSession
-	Room    RoomID
-	Output  chan string
-	Alive   bool
-	IsAdmin bool
+	Name     string
+	Session  *TelnetSession
+	Room     RoomID
+	Output   chan string
+	Alive    bool
+	IsAdmin  bool
+	Channels map[Channel]bool
 }
 
 type World struct {
 	mu      sync.RWMutex
 	rooms   map[RoomID]*Room
 	players map[string]*Player // by name
+}
+
+func defaultChannelSettings() map[Channel]bool {
+	return map[Channel]bool{
+		ChannelSay:     true,
+		ChannelWhisper: true,
+		ChannelYell:    true,
+		ChannelOOC:     true,
+	}
+}
+
+func (p *Player) channelEnabled(channel Channel) bool {
+	if p.Channels == nil {
+		return true
+	}
+	enabled, ok := p.Channels[channel]
+	if !ok {
+		return true
+	}
+	return enabled
 }
 
 type AccountManager struct {
@@ -735,9 +774,20 @@ func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool) (*P
 		existing.Room = "start"
 		existing.Alive = true
 		existing.IsAdmin = isAdmin
+		if existing.Channels == nil {
+			existing.Channels = defaultChannelSettings()
+		}
 		return existing, nil
 	}
-	p := &Player{Name: name, Session: session, Room: "start", Output: make(chan string, 32), Alive: true, IsAdmin: isAdmin}
+	p := &Player{
+		Name:     name,
+		Session:  session,
+		Room:     "start",
+		Output:   make(chan string, 32),
+		Alive:    true,
+		IsAdmin:  isAdmin,
+		Channels: defaultChannelSettings(),
+	}
 	w.players[name] = p
 	return p, nil
 }
@@ -781,6 +831,108 @@ func (w *World) broadcastToRoom(room RoomID, msg string, except *Player) {
 			}
 		}
 	}
+}
+
+func (w *World) broadcastToRoomChannel(room RoomID, msg string, except *Player, channel Channel) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	for _, target := range w.players {
+		if target.Room != room || target == except || !target.Alive {
+			continue
+		}
+		if !target.channelEnabled(channel) {
+			continue
+		}
+		select {
+		case target.Output <- msg:
+		default:
+		}
+	}
+}
+
+func (w *World) broadcastToRoomsChannel(rooms []RoomID, msg string, except *Player, channel Channel) {
+	if len(rooms) == 0 {
+		return
+	}
+	roomSet := make(map[RoomID]struct{}, len(rooms))
+	for _, room := range rooms {
+		roomSet[room] = struct{}{}
+	}
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	for _, target := range w.players {
+		if target == except || !target.Alive {
+			continue
+		}
+		if _, ok := roomSet[target.Room]; !ok {
+			continue
+		}
+		if !target.channelEnabled(channel) {
+			continue
+		}
+		select {
+		case target.Output <- msg:
+		default:
+		}
+	}
+}
+
+func (w *World) broadcastToAllChannel(msg string, except *Player, channel Channel) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	for _, target := range w.players {
+		if target == except || !target.Alive {
+			continue
+		}
+		if !target.channelEnabled(channel) {
+			continue
+		}
+		select {
+		case target.Output <- msg:
+		default:
+		}
+	}
+}
+
+func (w *World) adjacentRooms(room RoomID) []RoomID {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	current, ok := w.rooms[room]
+	if !ok {
+		return nil
+	}
+	seen := make(map[RoomID]struct{}, len(current.Exits))
+	neighbors := make([]RoomID, 0, len(current.Exits))
+	for _, next := range current.Exits {
+		if _, ok := seen[next]; ok {
+			continue
+		}
+		seen[next] = struct{}{}
+		neighbors = append(neighbors, next)
+	}
+	return neighbors
+}
+
+func (w *World) setChannel(p *Player, channel Channel, enabled bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if _, ok := w.players[p.Name]; !ok {
+		return
+	}
+	if p.Channels == nil {
+		p.Channels = defaultChannelSettings()
+	}
+	p.Channels[channel] = enabled
+}
+
+func (w *World) channelStatuses(p *Player) map[Channel]bool {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	statuses := make(map[Channel]bool, len(allChannels))
+	for _, channel := range allChannels {
+		statuses[channel] = p.channelEnabled(channel)
+	}
+	return statuses
 }
 
 func (w *World) renamePlayer(p *Player, newName string) error {
@@ -930,9 +1082,14 @@ func dispatch(world *World, p *Player, line string) bool {
 		body := "  help               - show this message\r\n" +
 			"  look               - describe your room\r\n" +
 			"  say <msg>          - chat to the room\r\n" +
+			"  whisper <msg>      - whisper to nearby rooms\r\n" +
+			"  yell <msg>         - yell to everyone\r\n" +
+			"  ooc <msg>          - out-of-character chat\r\n" +
 			"  emote <action>     - emote to the room (e.g. 'emote shrugs')\r\n" +
 			"  who                - list connected players\r\n" +
 			"  name <newname>     - change your display name\r\n" +
+			"  channel <name> <on|off> - toggle channel filters\r\n" +
+			"  channels           - show channel settings\r\n" +
 			"  reboot             - reload the world (admin only)\r\n" +
 			"  go <direction>     - move (n/s/e/w/u/d and more)\r\n" +
 			"  n/s/e/w/u/d        - shorthand for movement\r\n" +
@@ -955,8 +1112,34 @@ func dispatch(world *World, p *Player, line string) bool {
 			p.Output <- ansi(style("\r\nSay what?", ansiYellow))
 			return false
 		}
-		world.broadcastToRoom(p.Room, ansi(fmt.Sprintf("\r\n%s says: %s", highlightName(p.Name), arg)), p)
+		world.broadcastToRoomChannel(p.Room, ansi(fmt.Sprintf("\r\n%s says: %s", highlightName(p.Name), arg)), p, ChannelSay)
 		p.Output <- ansi(fmt.Sprintf("\r\n%s %s", style("You say:", ansiBold, ansiYellow), arg))
+	case "whisper":
+		if arg == "" {
+			p.Output <- ansi(style("\r\nWhisper what?", ansiYellow))
+			return false
+		}
+		world.broadcastToRoomChannel(p.Room, ansi(fmt.Sprintf("\r\n%s whispers: %s", highlightName(p.Name), arg)), p, ChannelWhisper)
+		nearby := world.adjacentRooms(p.Room)
+		if len(nearby) > 0 {
+			world.broadcastToRoomsChannel(nearby, ansi(fmt.Sprintf("\r\nYou hear %s whisper from nearby: %s", highlightName(p.Name), arg)), p, ChannelWhisper)
+		}
+		p.Output <- ansi(fmt.Sprintf("\r\n%s %s", style("You whisper:", ansiBold, ansiYellow), arg))
+	case "yell":
+		if arg == "" {
+			p.Output <- ansi(style("\r\nYell what?", ansiYellow))
+			return false
+		}
+		world.broadcastToAllChannel(ansi(fmt.Sprintf("\r\n%s yells: %s", highlightName(p.Name), arg)), p, ChannelYell)
+		p.Output <- ansi(fmt.Sprintf("\r\n%s %s", style("You yell:", ansiBold, ansiYellow), arg))
+	case "ooc":
+		if arg == "" {
+			p.Output <- ansi(style("\r\nOOC what?", ansiYellow))
+			return false
+		}
+		oocTag := style("[OOC]", ansiMagenta, ansiBold)
+		world.broadcastToAllChannel(ansi(fmt.Sprintf("\r\n%s %s: %s", oocTag, highlightName(p.Name), arg)), p, ChannelOOC)
+		p.Output <- ansi(fmt.Sprintf("\r\n%s %s", style("You (OOC):", ansiBold, ansiYellow), arg))
 	case "emote", ":":
 		if arg == "" {
 			p.Output <- ansi(style("\r\nEmote what?", ansiYellow))
@@ -984,6 +1167,34 @@ func dispatch(world *World, p *Player, line string) bool {
 		}
 		world.broadcastToRoom(p.Room, ansi(fmt.Sprintf("\r\n%s is now known as %s.", highlightName(old), highlightName(newName))), p)
 		p.Output <- ansi(fmt.Sprintf("\r\nYou are now known as %s.", highlightName(newName)))
+	case "channel":
+		fields := strings.Fields(strings.ToLower(arg))
+		if len(fields) == 0 {
+			sendChannelStatus(world, p)
+			return false
+		}
+		if len(fields) != 2 {
+			p.Output <- ansi(style("\r\nUsage: channel <name> <on|off>", ansiYellow))
+			return false
+		}
+		channelName := fields[0]
+		channel, ok := channelLookup[channelName]
+		if !ok {
+			p.Output <- ansi(style("\r\nUnknown channel.", ansiYellow))
+			return false
+		}
+		switch fields[1] {
+		case "on", "enable", "enabled":
+			world.setChannel(p, channel, true)
+			p.Output <- ansi(fmt.Sprintf("\r\n%s channel %s.", strings.ToUpper(channelName), style("ON", ansiGreen, ansiBold)))
+		case "off", "disable", "disabled":
+			world.setChannel(p, channel, false)
+			p.Output <- ansi(fmt.Sprintf("\r\n%s channel %s.", strings.ToUpper(channelName), style("OFF", ansiYellow)))
+		default:
+			p.Output <- ansi(style("\r\nUsage: channel <name> <on|off>", ansiYellow))
+		}
+	case "channels":
+		sendChannelStatus(world, p)
 	case "reboot":
 		if !p.IsAdmin {
 			p.Output <- ansi(style("\r\nOnly admins may reboot the world.", ansiYellow))
@@ -1015,6 +1226,21 @@ func dispatch(world *World, p *Player, line string) bool {
 		p.Output <- ansi("\r\nUnknown command. Type 'help'.")
 	}
 	return false
+}
+
+func sendChannelStatus(world *World, p *Player) {
+	statuses := world.channelStatuses(p)
+	var builder strings.Builder
+	builder.WriteString("\r\nChannel settings:\r\n")
+	for _, channel := range allChannels {
+		name := strings.ToUpper(string(channel))
+		state := style("OFF", ansiYellow)
+		if statuses[channel] {
+			state = style("ON", ansiGreen, ansiBold)
+		}
+		builder.WriteString(fmt.Sprintf("  %-10s %s\r\n", name, state))
+	}
+	p.Output <- ansi(builder.String())
 }
 
 func move(world *World, p *Player, dir string) bool {
