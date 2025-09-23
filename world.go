@@ -3,9 +3,14 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"sync"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 //go:embed data/areas/*.json
@@ -57,10 +62,67 @@ type World struct {
 type AccountManager struct {
 	mu    sync.RWMutex
 	creds map[string]string
+	path  string
 }
 
-func NewAccountManager() *AccountManager {
-	return &AccountManager{creds: make(map[string]string)}
+func NewAccountManager(path string) (*AccountManager, error) {
+	manager := &AccountManager{
+		creds: make(map[string]string),
+		path:  path,
+	}
+	if err := manager.load(); err != nil {
+		return nil, err
+	}
+	return manager, nil
+}
+
+func (a *AccountManager) load() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	data, err := os.ReadFile(a.path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read accounts file: %w", err)
+	}
+	if len(data) == 0 {
+		a.creds = make(map[string]string)
+		return nil
+	}
+	var creds map[string]string
+	if err := json.Unmarshal(data, &creds); err != nil {
+		return fmt.Errorf("decode accounts file: %w", err)
+	}
+	a.creds = creds
+	return nil
+}
+
+func (a *AccountManager) saveLocked() error {
+	dir := filepath.Dir(a.path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create accounts directory: %w", err)
+	}
+	tmp, err := os.CreateTemp(dir, "accounts-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create temp accounts file: %w", err)
+	}
+	enc := json.NewEncoder(tmp)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(a.creds); err != nil {
+		tmp.Close()
+		os.Remove(tmp.Name())
+		return fmt.Errorf("write accounts file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmp.Name())
+		return fmt.Errorf("close temp accounts file: %w", err)
+	}
+	if err := os.Rename(tmp.Name(), a.path); err != nil {
+		os.Remove(tmp.Name())
+		return fmt.Errorf("replace accounts file: %w", err)
+	}
+	return nil
 }
 
 func (a *AccountManager) Exists(name string) bool {
@@ -71,23 +133,31 @@ func (a *AccountManager) Exists(name string) bool {
 }
 
 func (a *AccountManager) Register(name, pass string) error {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if _, ok := a.creds[name]; ok {
 		return fmt.Errorf("account already exists")
 	}
-	a.creds[name] = pass
+	a.creds[name] = string(hashed)
+	if err := a.saveLocked(); err != nil {
+		delete(a.creds, name)
+		return err
+	}
 	return nil
 }
 
 func (a *AccountManager) Authenticate(name, pass string) bool {
 	a.mu.RLock()
-	defer a.mu.RUnlock()
-	expected, ok := a.creds[name]
+	hashed, ok := a.creds[name]
+	a.mu.RUnlock()
 	if !ok {
 		return false
 	}
-	return expected == pass
+	return bcrypt.CompareHashAndPassword([]byte(hashed), []byte(pass)) == nil
 }
 
 func NewWorld() (*World, error) {
