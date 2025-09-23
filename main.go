@@ -300,13 +300,49 @@ type Player struct {
 	Room    RoomID
 	Output  chan string
 	Alive   bool
+	IsAdmin bool
 }
 
 type World struct {
 	mu      sync.RWMutex
 	rooms   map[RoomID]*Room
 	players map[string]*Player // by name
-	guests  int
+}
+
+type AccountManager struct {
+	mu    sync.RWMutex
+	creds map[string]string
+}
+
+func NewAccountManager() *AccountManager {
+	return &AccountManager{creds: make(map[string]string)}
+}
+
+func (a *AccountManager) Exists(name string) bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	_, ok := a.creds[name]
+	return ok
+}
+
+func (a *AccountManager) Register(name, pass string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if _, ok := a.creds[name]; ok {
+		return fmt.Errorf("account already exists")
+	}
+	a.creds[name] = pass
+	return nil
+}
+
+func (a *AccountManager) Authenticate(name, pass string) bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	expected, ok := a.creds[name]
+	if !ok {
+		return false
+	}
+	return expected == pass
 }
 
 func NewWorld() *World {
@@ -314,8 +350,13 @@ func NewWorld() *World {
 		rooms:   make(map[RoomID]*Room),
 		players: make(map[string]*Player),
 	}
-	// Tiny starter map
-	w.rooms["start"] = &Room{
+	w.rooms = defaultRooms()
+	return w
+}
+
+func defaultRooms() map[RoomID]*Room {
+	rooms := map[RoomID]*Room{}
+	rooms["start"] = &Room{
 		ID:    "start",
 		Title: "Worn Stone Landing",
 		Description: "You stand on a time-polished stone platform. " +
@@ -323,31 +364,31 @@ func NewWorld() *World {
 			"east (the workshop), south (the garden), west (the market).",
 		Exits: map[string]RoomID{"n": "library", "e": "workshop", "s": "garden", "w": "market"},
 	}
-	w.rooms["library"] = &Room{
+	rooms["library"] = &Room{
 		ID:          "library",
 		Title:       "Dustlit Library",
 		Description: "Shelves lean with the weight of forgotten ideas. A faint smell of paper and ozone.",
 		Exits:       map[string]RoomID{"s": "start"},
 	}
-	w.rooms["workshop"] = &Room{
+	rooms["workshop"] = &Room{
 		ID:          "workshop",
 		Title:       "Crackle Workshop",
 		Description: "Benches, tools, and half-built contraptions hum with patient possibility.",
 		Exits:       map[string]RoomID{"w": "start"},
 	}
-	w.rooms["garden"] = &Room{
+	rooms["garden"] = &Room{
 		ID:          "garden",
 		Title:       "Night Garden",
 		Description: "Bioluminescent vines twine overhead. Footsteps hush on moss.",
 		Exits:       map[string]RoomID{"n": "start"},
 	}
-	w.rooms["market"] = &Room{
+	rooms["market"] = &Room{
 		ID:          "market",
 		Title:       "Silent Market",
 		Description: "Stalls stand ready for traders that never quite arrive.",
 		Exits:       map[string]RoomID{"e": "start"},
 	}
-	return w
+	return rooms
 }
 
 // ---------- Utility ----------
@@ -365,16 +406,92 @@ func ansi(c string) string {
 
 func prompt(p *Player) string { return ansi(style("\r\n> ", ansiBold, ansiYellow)) }
 
+func validateUsername(name string) error {
+	if name == "" {
+		return fmt.Errorf("name cannot be empty")
+	}
+	if strings.ContainsAny(name, " \t\r\n") {
+		return fmt.Errorf("name cannot contain spaces")
+	}
+	if len(name) > 24 {
+		return fmt.Errorf("name must be 24 characters or fewer")
+	}
+	return nil
+}
+
+func login(session *TelnetSession, accounts *AccountManager) (string, bool, error) {
+	_ = session.WriteString(ansi(style("\r\nLogin required.\r\n", ansiMagenta, ansiBold)))
+	for attempts := 0; attempts < 5; attempts++ {
+		_ = session.WriteString(ansi("\r\nUsername: "))
+		username, err := session.ReadLine()
+		if err != nil {
+			return "", false, err
+		}
+		username = trim(username)
+		if err := validateUsername(username); err != nil {
+			_ = session.WriteString(ansi(style("\r\n"+err.Error(), ansiYellow)))
+			continue
+		}
+		if accounts.Exists(username) {
+			for tries := 0; tries < 3; tries++ {
+				_ = session.WriteString(ansi("\r\nPassword: "))
+				password, err := session.ReadLine()
+				if err != nil {
+					return "", false, err
+				}
+				password = trim(password)
+				if accounts.Authenticate(username, password) {
+					_ = session.WriteString(ansi(style("\r\nWelcome back, "+username+"!", ansiGreen)))
+					return username, strings.EqualFold(username, "admin"), nil
+				}
+				_ = session.WriteString(ansi(style("\r\nIncorrect password.", ansiYellow)))
+			}
+			_ = session.WriteString(ansi("\r\nToo many failed attempts.\r\n"))
+			return "", false, fmt.Errorf("authentication failed")
+		}
+
+		for {
+			_ = session.WriteString(ansi("\r\nSet a password: "))
+			password, err := session.ReadLine()
+			if err != nil {
+				return "", false, err
+			}
+			password = trim(password)
+			if password == "" {
+				_ = session.WriteString(ansi(style("\r\nPassword cannot be blank.", ansiYellow)))
+				continue
+			}
+			if err := accounts.Register(username, password); err != nil {
+				_ = session.WriteString(ansi(style("\r\n"+err.Error(), ansiYellow)))
+				break
+			}
+			_ = session.WriteString(ansi(style("\r\nAccount created. Welcome, "+username+"!", ansiGreen)))
+			return username, strings.EqualFold(username, "admin"), nil
+		}
+	}
+	_ = session.WriteString(ansi("\r\nLogin cancelled.\r\n"))
+	return "", false, fmt.Errorf("login cancelled")
+}
+
 // ---------- World Methods (concurrency-safe) ----------
 
-func (w *World) addPlayer(session *TelnetSession) *Player {
+func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool) (*Player, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	w.guests++
-	name := fmt.Sprintf("Guest%d", w.guests)
-	p := &Player{Name: name, Session: session, Room: "start", Output: make(chan string, 32), Alive: true}
+	if existing, ok := w.players[name]; ok {
+		if existing.Alive {
+			return nil, fmt.Errorf("%s is already connected", name)
+		}
+		existing.Session = session
+		existing.Output = make(chan string, 32)
+		existing.Room = "start"
+		existing.Alive = true
+		existing.IsAdmin = isAdmin
+		return existing, nil
+	}
+	p := &Player{Name: name, Session: session, Room: "start", Output: make(chan string, 32), Alive: true, IsAdmin: isAdmin}
 	w.players[name] = p
-	return p
+	return p, nil
 }
 
 func (w *World) removePlayer(name string) {
@@ -384,6 +501,18 @@ func (w *World) removePlayer(name string) {
 		delete(w.players, name)
 		close(p.Output)
 	}
+}
+
+func (w *World) reboot() []*Player {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.rooms = defaultRooms()
+	revived := make([]*Player, 0, len(w.players))
+	for _, p := range w.players {
+		p.Room = "start"
+		revived = append(revived, p)
+	}
+	return revived
 }
 
 func (w *World) getRoom(id RoomID) (*Room, bool) {
@@ -448,10 +577,19 @@ func (w *World) move(p *Player, dir string) (string, error) {
 
 // ---------- Connection Handling ----------
 
-func handleConn(conn net.Conn, world *World) {
+func handleConn(conn net.Conn, world *World, accounts *AccountManager) {
 	session := NewTelnetSession(conn)
 	defer session.Close()
-	p := world.addPlayer(session)
+	username, isAdmin, err := login(session, accounts)
+	if err != nil {
+		return
+	}
+
+	p, err := world.addPlayer(username, session, isAdmin)
+	if err != nil {
+		_ = session.WriteString(ansi(style("\r\n"+err.Error()+"\r\n", ansiYellow)))
+		return
+	}
 
 	// Writer goroutine
 	go func() {
@@ -547,6 +685,7 @@ func dispatch(world *World, p *Player, line string) bool {
 			"  emote <action>     - emote to the room (e.g. 'emote shrugs')\r\n" +
 			"  who                - list connected players\r\n" +
 			"  name <newname>     - change your display name\r\n" +
+			"  reboot             - reload the world (admin only)\r\n" +
 			"  go <n|s|e|w>       - move by direction\r\n" +
 			"  n/s/e/w            - shorthand for movement\r\n" +
 			"  quit               - disconnect"
@@ -597,6 +736,17 @@ func dispatch(world *World, p *Player, line string) bool {
 		}
 		world.broadcastToRoom(p.Room, ansi(fmt.Sprintf("\r\n%s is now known as %s.", highlightName(old), highlightName(newName))), p)
 		p.Output <- ansi(fmt.Sprintf("\r\nYou are now known as %s.", highlightName(newName)))
+	case "reboot":
+		if !p.IsAdmin {
+			p.Output <- ansi(style("\r\nOnly admins may reboot the world.", ansiYellow))
+			return false
+		}
+		p.Output <- ansi(style("\r\nRebooting the world...", ansiMagenta, ansiBold))
+		players := world.reboot()
+		for _, target := range players {
+			target.Output <- ansi(style("\r\nReality shimmers as the world is rebooted.", ansiMagenta))
+			enterRoom(world, target, "")
+		}
 	case "go":
 		dir := strings.ToLower(strings.TrimSpace(arg))
 		if dir == "" {
@@ -633,6 +783,7 @@ func move(world *World, p *Player, dir string) bool {
 func main() {
 	addr := ":4000"
 	world := NewWorld()
+	accounts := NewAccountManager()
 
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -646,6 +797,6 @@ func main() {
 			continue
 		}
 		// Telnet negotiation and ANSI handling are done per-connection in handleConn.
-		go handleConn(conn, world)
+		go handleConn(conn, world, accounts)
 	}
 }
