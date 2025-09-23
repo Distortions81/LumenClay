@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -35,6 +36,7 @@ func exitList(r *Room) string {
 	for k := range r.Exits {
 		keys = append(keys, k)
 	}
+	sort.Strings(keys)
 	return strings.Join(keys, " ")
 }
 
