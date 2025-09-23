@@ -33,6 +33,12 @@ MUD listening on :4000 (telnet + ANSI ready)
 
 Leave this process running while clients connect.
 
+To listen on a different host or port, supply the `-addr` flag. For example, to restrict the server to localhost on port 5000:
+
+```bash
+go run . -addr "127.0.0.1:5000"
+```
+
 To stop the server, press `Ctrl+C` in the terminal running `go run .` or terminate the compiled binary if you used `go build`.
 
 ## Connecting via telnet
