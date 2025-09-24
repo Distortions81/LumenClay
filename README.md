@@ -39,6 +39,16 @@ To listen on a different host or port, supply the `-addr` flag. For example, to 
 go run . -addr "127.0.0.1:5000"
 ```
 
+Enable TLS by passing `-tls`. By default the server stores its certificate at `data/tls/cert.pem` and private key at `data/tls/key.pem`,
+and you can override these paths with the `-cert` and `-key` flags:
+
+```bash
+go run . -tls -cert /path/to/cert.pem -key /path/to/key.pem
+```
+
+When the specified certificate or key files do not exist, `ListenAndServeTLS` automatically generates a self-signed certificate the
+first time the server starts and reuses it on subsequent runs.
+
 To stop the server, press `Ctrl+C` in the terminal running `go run .` or terminate the compiled binary if you used `go build`.
 
 ## Connecting via telnet
