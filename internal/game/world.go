@@ -67,15 +67,16 @@ func ChannelFromString(name string) (Channel, bool) {
 }
 
 type Player struct {
-	Name     string
-	Account  string
-	Session  *TelnetSession
-	Room     RoomID
-	Output   chan string
-	Alive    bool
-	IsAdmin  bool
-	Channels map[Channel]bool
-	history  []time.Time
+	Name      string
+  	Account  string
+	Session   *TelnetSession
+	Room      RoomID
+	Output    chan string
+	Alive     bool
+	IsAdmin   bool
+	IsBuilder bool
+	Channels  map[Channel]bool
+	history   []time.Time
 }
 
 // PlayerProfile captures persistent player state and preferences.
@@ -117,6 +118,12 @@ type accountRecord struct {
 	Password string          `json:"password"`
 	Room     RoomID          `json:"room,omitempty"`
 	Channels map[string]bool `json:"channels,omitempty"`
+}
+
+// PlayerLocation describes the room occupied by a connected player.
+type PlayerLocation struct {
+	Name string
+	Room RoomID
 }
 
 type AccountManager struct {
@@ -465,14 +472,15 @@ func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool, pro
 
 	playerChannels := cloneChannelSettings(channels)
 	p := &Player{
-		Name:     name,
-		Account:  name,
-		Session:  session,
-		Room:     room,
-		Output:   make(chan string, 32),
-		Alive:    true,
-		IsAdmin:  isAdmin,
-		Channels: playerChannels,
+		Name:      name,
+    		Account:  name,
+		Session:   session,
+		Room:      "start",
+		Output:    make(chan string, 32),
+		Alive:     true,
+		IsAdmin:   isAdmin,
+		IsBuilder: false,
+		Channels:  defaultChannelSettings(),
 	}
 	w.players[name] = p
 	persistChannels := cloneChannelSettings(playerChannels)
@@ -711,4 +719,75 @@ func (w *World) Move(p *Player, dir string) (string, error) {
 	w.mu.Unlock()
 	w.persistPlayerState(account, next, channels)
 	return string(next), nil
+}
+
+func (w *World) findPlayerLocked(name string) (*Player, bool) {
+	if p, ok := w.players[name]; ok && p.Alive {
+		return p, true
+	}
+	lower := strings.ToLower(name)
+	for _, p := range w.players {
+		if !p.Alive {
+			continue
+		}
+		if strings.ToLower(p.Name) == lower {
+			return p, true
+		}
+	}
+	return nil, false
+}
+
+// FindPlayer locates an online player by name, performing a case-insensitive match.
+func (w *World) FindPlayer(name string) (*Player, bool) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	p, ok := w.findPlayerLocked(name)
+	if !ok {
+		return nil, false
+	}
+	return p, true
+}
+
+// SetBuilder toggles the builder flag for a connected player.
+func (w *World) SetBuilder(name string, enabled bool) (*Player, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	p, ok := w.findPlayerLocked(name)
+	if !ok {
+		return nil, fmt.Errorf("%s is not online", name)
+	}
+	p.IsBuilder = enabled
+	return p, nil
+}
+
+// MoveToRoom relocates the provided player to the specified room.
+func (w *World) MoveToRoom(p *Player, room RoomID) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if _, ok := w.rooms[room]; !ok {
+		return fmt.Errorf("unknown room: %s", room)
+	}
+	stored, ok := w.players[p.Name]
+	if !ok || stored != p || !p.Alive {
+		return fmt.Errorf("%s is not online", p.Name)
+	}
+	p.Room = room
+	return nil
+}
+
+// PlayerLocations returns the set of connected players and their rooms sorted by name.
+func (w *World) PlayerLocations() []PlayerLocation {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	locations := make([]PlayerLocation, 0, len(w.players))
+	for _, p := range w.players {
+		if !p.Alive {
+			continue
+		}
+		locations = append(locations, PlayerLocation{Name: p.Name, Room: p.Room})
+	}
+	sort.Slice(locations, func(i, j int) bool {
+		return locations[i].Name < locations[j].Name
+	})
+	return locations
 }
