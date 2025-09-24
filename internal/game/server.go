@@ -165,28 +165,32 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager, dispatche
 // ListenAndServe starts a MUD server on the provided address using the
 // account database at accountsPath. The dispatcher is used to execute player
 // commands. It returns when the listener encounters a fatal error.
-func ListenAndServe(addr, accountsPath string, dispatcher Dispatcher) error {
-	return listenAndServe(addr, accountsPath, dispatcher, serverConfig{})
+func ListenAndServe(addr, accountsPath, areasPath string, dispatcher Dispatcher) error {
+	return listenAndServe(addr, accountsPath, areasPath, dispatcher, serverConfig{})
 }
 
 // ListenAndServeTLS behaves like ListenAndServe but secures the connection
 // using TLS with the provided certificate and key files. If the files do not
 // exist, a self-signed certificate is generated.
-func ListenAndServeTLS(addr, accountsPath, certFile, keyFile string, dispatcher Dispatcher) error {
+func ListenAndServeTLS(addr, accountsPath, areasPath, certFile, keyFile string, dispatcher Dispatcher) error {
 	cfg := serverConfig{
 		enableTLS: true,
 		certFile:  certFile,
 		keyFile:   keyFile,
 	}
-	return listenAndServe(addr, accountsPath, dispatcher, cfg)
+	return listenAndServe(addr, accountsPath, areasPath, dispatcher, cfg)
 }
 
-func listenAndServe(addr, accountsPath string, dispatcher Dispatcher, cfg serverConfig) error {
+func listenAndServe(addr, accountsPath, areasPath string, dispatcher Dispatcher, cfg serverConfig) error {
 	if dispatcher == nil {
 		return fmt.Errorf("dispatcher must not be nil")
 	}
 
-	world, err := NewWorld()
+	if areasPath == "" {
+		areasPath = DefaultAreasPath
+	}
+
+	world, err := NewWorld(areasPath)
 	if err != nil {
 		return err
 	}

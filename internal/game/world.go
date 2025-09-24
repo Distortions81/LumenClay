@@ -1,7 +1,6 @@
 package game
 
 import (
-	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,8 +13,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-//go:embed data/areas/*.json
-var areaFiles embed.FS
+// DefaultAreasPath is the on-disk location of bundled areas.
+const DefaultAreasPath = "data/areas"
 
 type RoomID string
 
@@ -68,9 +67,10 @@ type Player struct {
 }
 
 type World struct {
-	mu      sync.RWMutex
-	rooms   map[RoomID]*Room
-	players map[string]*Player
+	mu        sync.RWMutex
+	rooms     map[RoomID]*Room
+	players   map[string]*Player
+	areasPath string
 }
 
 type AccountManager struct {
@@ -174,14 +174,15 @@ func (a *AccountManager) Authenticate(name, pass string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hashed), []byte(pass)) == nil
 }
 
-func NewWorld() (*World, error) {
-	rooms, err := loadRooms()
+func NewWorld(areasPath string) (*World, error) {
+	rooms, err := loadRooms(areasPath)
 	if err != nil {
 		return nil, err
 	}
 	return &World{
-		rooms:   rooms,
-		players: make(map[string]*Player),
+		rooms:     rooms,
+		players:   make(map[string]*Player),
+		areasPath: areasPath,
 	}, nil
 }
 
@@ -208,8 +209,8 @@ type areaFile struct {
 	Rooms []Room `json:"rooms"`
 }
 
-func loadRooms() (map[RoomID]*Room, error) {
-	entries, err := areaFiles.ReadDir("data/areas")
+func loadRooms(areasPath string) (map[RoomID]*Room, error) {
+	entries, err := os.ReadDir(areasPath)
 	if err != nil {
 		return nil, fmt.Errorf("read areas: %w", err)
 	}
@@ -218,13 +219,16 @@ func loadRooms() (map[RoomID]*Room, error) {
 		if entry.IsDir() {
 			continue
 		}
+		if filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
 		names = append(names, entry.Name())
 	}
 	sort.Strings(names)
 
 	rooms := make(map[RoomID]*Room)
 	for _, name := range names {
-		data, err := areaFiles.ReadFile("data/areas/" + name)
+		data, err := os.ReadFile(filepath.Join(areasPath, name))
 		if err != nil {
 			return nil, fmt.Errorf("read area %s: %w", name, err)
 		}
@@ -325,7 +329,10 @@ func (w *World) removePlayer(name string) {
 func (w *World) Reboot() ([]*Player, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	rooms, err := loadRooms()
+	if w.areasPath == "" {
+		return nil, fmt.Errorf("world does not have an areas path configured")
+	}
+	rooms, err := loadRooms(w.areasPath)
 	if err != nil {
 		return nil, err
 	}
