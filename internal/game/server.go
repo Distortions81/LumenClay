@@ -25,6 +25,12 @@ type serverConfig struct {
 	keyFile   string
 }
 
+const (
+	postLoginAtmosphere = "The luminous clay stirs to life around you."
+	postLoginPrompt     = "Type 'help' to learn the essentials or 'look' to absorb your surroundings."
+	logoffAtmosphere    = "The luminous clay cools and settles as the radiance fades."
+)
+
 func ensureCertificate(certFile, keyFile, addr string) (tls.Certificate, bool, error) {
 	if cert, err := tls.LoadX509KeyPair(certFile, keyFile); err == nil {
 		return cert, false, nil
@@ -134,7 +140,9 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager, dispatche
 		}
 	}()
 
-	p.Output <- Ansi(Style("\r\nWelcome to the tiny Go MUD. Type 'help' for commands.", AnsiMagenta, AnsiBold))
+	p.Output <- Ansi("\r\n" + Style(postLoginAtmosphere, AnsiMagenta, AnsiBold) + "\r\n")
+	p.Output <- Ansi("Welcome, " + HighlightName(p.Name) + Style("!\r\n", AnsiMagenta))
+	p.Output <- Ansi(Style(postLoginPrompt+"\r\n", AnsiGreen))
 	EnterRoom(world, p, "")
 
 	_ = conn.SetReadDeadline(time.Time{})
@@ -163,6 +171,10 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager, dispatche
 		p.Output <- Prompt(p)
 	}
 
+	farewell := "\r\n" + Style(logoffAtmosphere, AnsiMagenta, AnsiBold) + "\r\n"
+	p.Output <- Ansi(farewell)
+	p.Output <- Ansi("Until next time, " + HighlightName(p.Name) + Style(".\r\n", AnsiMagenta))
+	p.Output <- Ansi(Style("\r\n"+copyrightNotice+"\r\n", AnsiBlue, AnsiDim))
 	p.Alive = false
 	world.BroadcastToRoom(p.Room, Ansi(fmt.Sprintf("\r\n%s leaves.", HighlightName(p.Name))), p)
 	world.PersistPlayer(p)

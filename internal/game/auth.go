@@ -5,6 +5,15 @@ import (
 	"strings"
 )
 
+const (
+	loginBanner = "╔══════════════════════════════════════╗\r\n" +
+		"║              LUMENCLAY               ║\r\n" +
+		"║   Sculpt your legend in living light  ║\r\n" +
+		"╚══════════════════════════════════════╝"
+	loginTagline    = "Where imagination takes shape in radiant hues."
+	copyrightNotice = "All rights reserved, Copyright 2025 Carl Frank Otto III"
+)
+
 func validateUsername(name string) error {
 	if name == "" {
 		return fmt.Errorf("name cannot be empty")
@@ -29,6 +38,9 @@ func validatePassword(password string) error {
 }
 
 func login(session *TelnetSession, accounts *AccountManager) (string, bool, error) {
+	_ = session.WriteString(Ansi("\r\n" + Style(loginBanner, AnsiCyan, AnsiBold) + "\r\n"))
+	_ = session.WriteString(Ansi(Style("\r\n"+loginTagline+"\r\n", AnsiGreen)))
+	_ = session.WriteString(Ansi(Style("\r\n"+copyrightNotice+"\r\n", AnsiBlue, AnsiDim)))
 	_ = session.WriteString(Ansi(Style("\r\nLogin required.\r\n", AnsiMagenta, AnsiBold)))
 	for attempts := 0; attempts < 5; attempts++ {
 		_ = session.WriteString(Ansi("\r\nUsername: "))

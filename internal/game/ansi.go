@@ -12,6 +12,7 @@ const (
 	AnsiYellow    = "\x1b[33m"
 	AnsiGreen     = "\x1b[32m"
 	AnsiMagenta   = "\x1b[35m"
+	AnsiBlue      = "\x1b[34m"
 )
 
 // Style wraps text with the provided ANSI attributes.
