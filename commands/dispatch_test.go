@@ -102,6 +102,74 @@ func TestDispatchSayBroadcastsToRoomChannel(t *testing.T) {
 	}
 }
 
+func TestDispatchAutocompletePrefix(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"hall": {
+			ID:          "hall",
+			Title:       "Hall",
+			Description: "An empty hall.",
+			Exits:       map[string]game.RoomID{},
+		},
+	})
+	player := newTestPlayer("Reader", "hall")
+	world.AddPlayerForTest(player)
+
+	if done := Dispatch(world, player, "hel"); done {
+		t.Fatalf("dispatch returned true, want false")
+	}
+
+	msgs := drainOutput(player.Output)
+	sawHelp := false
+	for _, msg := range msgs {
+		if strings.Contains(msg, "Unknown command") {
+			t.Fatalf("received unknown command message: %v", msgs)
+		}
+		if strings.Contains(msg, "Commands:") {
+			sawHelp = true
+		}
+	}
+	if !sawHelp {
+		t.Fatalf("did not receive help output: %v", msgs)
+	}
+}
+
+func TestDispatchAutocompleteSimilarity(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"hall": {
+			ID:          "hall",
+			Title:       "Hall",
+			Description: "An empty hall.",
+			Exits:       map[string]game.RoomID{},
+		},
+	})
+	speaker := newTestPlayer("Speaker", "hall")
+	listener := newTestPlayer("Listener", "hall")
+	world.AddPlayerForTest(speaker)
+	world.AddPlayerForTest(listener)
+
+	if done := Dispatch(world, speaker, "sya hello there"); done {
+		t.Fatalf("dispatch returned true, want false")
+	}
+
+	speakerMsgs := drainOutput(speaker.Output)
+	if len(speakerMsgs) == 0 || !strings.Contains(speakerMsgs[len(speakerMsgs)-1], "You say: hello there") {
+		t.Fatalf("speaker output unexpected: %v", speakerMsgs)
+	}
+
+	listenerMsgs := drainOutput(listener.Output)
+	if len(listenerMsgs) == 0 || !strings.Contains(listenerMsgs[len(listenerMsgs)-1], "Speaker says: hello there") {
+		t.Fatalf("listener output unexpected: %v", listenerMsgs)
+	}
+}
+
+func TestShortcutRegistered(t *testing.T) {
+	registryMu.RLock()
+	defer registryMu.RUnlock()
+	if _, ok := registry["g"]; !ok {
+		t.Fatalf("shortcut for go command not registered")
+	}
+}
+
 func TestDispatchChannelToggleDisablesSay(t *testing.T) {
 	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
 		"hall": {

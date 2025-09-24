@@ -13,6 +13,7 @@ import (
 type Definition struct {
 	Name        string
 	Aliases     []string
+	Shortcut    string
 	Usage       string
 	Description string
 }
@@ -67,6 +68,9 @@ func Define(def Definition, handler Handler) *Command {
 	}
 
 	registerName(def.Name)
+	if strings.TrimSpace(def.Shortcut) != "" {
+		registerName(def.Shortcut)
+	}
 	for _, alias := range def.Aliases {
 		if strings.TrimSpace(alias) == "" {
 			continue
@@ -102,8 +106,11 @@ func Dispatch(world *game.World, player *game.Player, line string) bool {
 
 	registryMu.RLock()
 	cmd, ok := registry[name]
-	registryMu.RUnlock()
 	if !ok {
+		cmd = nearestCommandLocked(name)
+	}
+	registryMu.RUnlock()
+	if cmd == nil {
 		player.Output <- game.Ansi("\r\nUnknown command. Type 'help'.")
 		return false
 	}
@@ -118,4 +125,87 @@ func Dispatch(world *game.World, player *game.Player, line string) bool {
 		Command: cmd,
 	}
 	return cmd.Handler(ctx)
+}
+
+func nearestCommandLocked(name string) *Command {
+	lower := strings.ToLower(name)
+
+	prefixMatches := make(map[*Command]string)
+	for key, cmd := range registry {
+		if strings.HasPrefix(key, lower) {
+			if best, exists := prefixMatches[cmd]; !exists || len(key) < len(best) || (len(key) == len(best) && key < best) {
+				prefixMatches[cmd] = key
+			}
+		}
+	}
+	if len(prefixMatches) == 1 {
+		for cmd := range prefixMatches {
+			return cmd
+		}
+	}
+
+	var bestCmd *Command
+	bestDistance := 0
+	bestName := ""
+	for _, cmd := range ordered {
+		candidate := strings.ToLower(cmd.Name)
+		dist := levenshtein(lower, candidate)
+		threshold := len(candidate) / 2
+		if threshold < 2 {
+			threshold = 2
+		}
+		if dist > threshold {
+			continue
+		}
+		if bestCmd == nil || dist < bestDistance || (dist == bestDistance && candidate < bestName) {
+			bestCmd = cmd
+			bestDistance = dist
+			bestName = candidate
+		}
+	}
+	return bestCmd
+}
+
+func levenshtein(a, b string) int {
+	if a == b {
+		return 0
+	}
+	ar := []rune(a)
+	br := []rune(b)
+	if len(ar) == 0 {
+		return len(br)
+	}
+	if len(br) == 0 {
+		return len(ar)
+	}
+
+	prev := make([]int, len(br)+1)
+	curr := make([]int, len(br)+1)
+	for j := range prev {
+		prev[j] = j
+	}
+
+	for i, ra := range ar {
+		curr[0] = i + 1
+		for j, rb := range br {
+			cost := 0
+			if ra != rb {
+				cost = 1
+			}
+			insertion := curr[j] + 1
+			deletion := prev[j+1] + 1
+			substitution := prev[j] + cost
+			curr[j+1] = minInt(insertion, minInt(deletion, substitution))
+		}
+		copy(prev, curr)
+	}
+
+	return prev[len(br)]
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
