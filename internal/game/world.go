@@ -1,6 +1,8 @@
 package game
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -157,13 +159,10 @@ type World struct {
 }
 
 type accountRecord struct {
-	Password    string          `json:"password"`
-	Room        RoomID          `json:"room,omitempty"`
-	Home        RoomID          `json:"home,omitempty"`
-	Channels    map[string]bool `json:"channels,omitempty"`
-	CreatedAt   time.Time       `json:"created_at,omitempty"`
-	LastLogin   time.Time       `json:"last_login,omitempty"`
-	TotalLogins int             `json:"total_logins,omitempty"`
+	Password    string    `json:"password"`
+	CreatedAt   time.Time `json:"created_at,omitempty"`
+	LastLogin   time.Time `json:"last_login,omitempty"`
+	TotalLogins int       `json:"total_logins,omitempty"`
 }
 
 // AccountStats summarises persistent account metadata used for in-game displays.
@@ -183,6 +182,7 @@ type AccountManager struct {
 	mu           sync.RWMutex
 	accounts     map[string]accountRecord
 	path         string
+	playersPath  string
 	adminAccount string
 }
 
@@ -190,12 +190,85 @@ func NewAccountManager(path string) (*AccountManager, error) {
 	manager := &AccountManager{
 		accounts:     make(map[string]accountRecord),
 		path:         path,
+		playersPath:  filepath.Join(filepath.Dir(path), "players"),
 		adminAccount: defaultAdminAccount,
 	}
 	if err := manager.load(); err != nil {
 		return nil, err
 	}
 	return manager, nil
+}
+
+func (a *AccountManager) playerFilePath(name string) string {
+	sum := sha256.Sum256([]byte(strings.ToLower(name)))
+	filename := hex.EncodeToString(sum[:]) + ".json"
+	return filepath.Join(a.playersPath, filename)
+}
+
+func (a *AccountManager) loadPlayerProfile(name string) (PlayerProfile, bool) {
+	if a.playersPath == "" {
+		return PlayerProfile{}, false
+	}
+	path := a.playerFilePath(name)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return PlayerProfile{}, false
+	}
+	type playerRecord struct {
+		Room     RoomID          `json:"room,omitempty"`
+		Home     RoomID          `json:"home,omitempty"`
+		Channels map[string]bool `json:"channels,omitempty"`
+	}
+	var record playerRecord
+	if err := json.Unmarshal(data, &record); err != nil {
+		return PlayerProfile{}, false
+	}
+	profile := PlayerProfile{
+		Room:     record.Room,
+		Home:     record.Home,
+		Channels: decodeChannelSettings(record.Channels),
+	}
+	return profile, true
+}
+
+func (a *AccountManager) savePlayerProfile(name string, profile PlayerProfile) error {
+	if a.playersPath == "" {
+		return nil
+	}
+	if err := os.MkdirAll(a.playersPath, 0o755); err != nil {
+		return fmt.Errorf("create players directory: %w", err)
+	}
+	tmp, err := os.CreateTemp(a.playersPath, "player-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create temp player file: %w", err)
+	}
+	type playerRecord struct {
+		Room     RoomID          `json:"room,omitempty"`
+		Home     RoomID          `json:"home,omitempty"`
+		Channels map[string]bool `json:"channels,omitempty"`
+	}
+	record := playerRecord{
+		Room:     profile.Room,
+		Home:     profile.Home,
+		Channels: encodeChannelSettings(profile.Channels),
+	}
+	enc := json.NewEncoder(tmp)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(record); err != nil {
+		tmp.Close()
+		os.Remove(tmp.Name())
+		return fmt.Errorf("write player file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmp.Name())
+		return fmt.Errorf("close temp player file: %w", err)
+	}
+	target := a.playerFilePath(name)
+	if err := os.Rename(tmp.Name(), target); err != nil {
+		os.Remove(tmp.Name())
+		return fmt.Errorf("replace player file: %w", err)
+	}
+	return nil
 }
 
 func (a *AccountManager) SetAdminAccount(name string) {
@@ -233,22 +306,12 @@ func (a *AccountManager) load() error {
 		a.accounts = make(map[string]accountRecord)
 		return nil
 	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
+	var accounts map[string]accountRecord
+	if err := json.Unmarshal(data, &accounts); err != nil {
 		return fmt.Errorf("decode accounts file: %w", err)
 	}
-	accounts := make(map[string]accountRecord, len(raw))
-	for name, blob := range raw {
-		var password string
-		if err := json.Unmarshal(blob, &password); err == nil {
-			accounts[name] = accountRecord{Password: password}
-			continue
-		}
-		var record accountRecord
-		if err := json.Unmarshal(blob, &record); err != nil {
-			return fmt.Errorf("decode account %s: %w", name, err)
-		}
-		accounts[name] = record
+	if accounts == nil {
+		accounts = make(map[string]accountRecord)
 	}
 	a.accounts = accounts
 	return nil
@@ -301,9 +364,6 @@ func (a *AccountManager) Register(name, pass string) error {
 	now := time.Now().UTC()
 	a.accounts[name] = accountRecord{
 		Password:    string(hashed),
-		Room:        StartRoom,
-		Home:        StartRoom,
-		Channels:    encodeChannelSettings(defaultChannelSettings()),
 		CreatedAt:   now,
 		LastLogin:   time.Time{},
 		TotalLogins: 0,
@@ -328,42 +388,37 @@ func (a *AccountManager) Authenticate(name, pass string) bool {
 // Profile retrieves the persisted state for a player. Defaults are returned for
 // unknown accounts.
 func (a *AccountManager) Profile(name string) PlayerProfile {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
 	profile := PlayerProfile{
 		Room:     StartRoom,
 		Home:     StartRoom,
 		Channels: defaultChannelSettings(),
 	}
-	record, ok := a.accounts[name]
-	if !ok {
-		return profile
-	}
-	if record.Room != "" {
-		profile.Room = record.Room
-	}
-	if record.Home != "" {
-		profile.Home = record.Home
-	}
-	if record.Channels != nil {
-		profile.Channels = decodeChannelSettings(record.Channels)
+	if disk, found := a.loadPlayerProfile(name); found {
+		if disk.Room != "" {
+			profile.Room = disk.Room
+		}
+		if disk.Home != "" {
+			profile.Home = disk.Home
+		}
+		if disk.Channels != nil {
+			profile.Channels = disk.Channels
+		}
 	}
 	return profile
 }
 
 // SaveProfile persists the provided state for the named account.
 func (a *AccountManager) SaveProfile(name string, profile PlayerProfile) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	record, ok := a.accounts[name]
+	a.mu.RLock()
+	_, ok := a.accounts[name]
+	a.mu.RUnlock()
 	if !ok {
 		return fmt.Errorf("account not found")
 	}
-	record.Room = profile.Room
-	record.Home = profile.Home
-	record.Channels = encodeChannelSettings(profile.Channels)
-	a.accounts[name] = record
-	return a.saveLocked()
+	if err := a.savePlayerProfile(name, profile); err != nil {
+		return err
+	}
+	return nil
 }
 
 // RecordLogin updates bookkeeping for a successful login.
