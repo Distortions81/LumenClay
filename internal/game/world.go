@@ -31,11 +31,29 @@ type Room struct {
 	Exits       map[string]RoomID `json:"exits"`
 	NPCs        []NPC             `json:"npcs"`
 	Items       []Item            `json:"items"`
+	Resets      []RoomReset       `json:"resets,omitempty"`
 }
 
 type NPC struct {
 	Name      string `json:"name"`
 	AutoGreet string `json:"auto_greet"`
+}
+
+// ResetKind identifies the type of entity governed by a room reset.
+type ResetKind string
+
+const (
+	ResetKindNPC  ResetKind = "npc"
+	ResetKindItem ResetKind = "item"
+)
+
+// RoomReset describes how a room repopulates persistent content.
+type RoomReset struct {
+	Kind        ResetKind `json:"kind"`
+	Name        string    `json:"name"`
+	Count       int       `json:"count,omitempty"`
+	AutoGreet   string    `json:"auto_greet,omitempty"`
+	Description string    `json:"description,omitempty"`
 }
 
 // Item represents an object that can exist in rooms or player inventories.
@@ -539,6 +557,11 @@ func (w *World) persistBuilderRoomsLocked() error {
 			copy(items, room.Items)
 			copyRoom.Items = items
 		}
+		if room.Resets != nil {
+			resets := make([]RoomReset, len(room.Resets))
+			copy(resets, room.Resets)
+			copyRoom.Resets = resets
+		}
 		rooms = append(rooms, copyRoom)
 	}
 	sort.Slice(rooms, func(i, j int) bool {
@@ -938,6 +961,41 @@ func findItemIndex(items []Item, target string) int {
 	return idx
 }
 
+func findNPCIndex(npcs []NPC, target string) int {
+	if target == "" {
+		return -1
+	}
+	names := make([]string, len(npcs))
+	for i, npc := range npcs {
+		names[i] = npc.Name
+	}
+	idx, ok := uniqueMatch(target, names, true)
+	if !ok {
+		return -1
+	}
+	return idx
+}
+
+func findResetIndex(resets []RoomReset, kind ResetKind, target string) int {
+	if target == "" {
+		return -1
+	}
+	candidates := make([]string, 0, len(resets))
+	indexes := make([]int, 0, len(resets))
+	for i, reset := range resets {
+		if reset.Kind != kind {
+			continue
+		}
+		candidates = append(candidates, reset.Name)
+		indexes = append(indexes, i)
+	}
+	idx, ok := uniqueMatch(target, candidates, true)
+	if !ok {
+		return -1
+	}
+	return indexes[idx]
+}
+
 // RoomItems returns a copy of the items present in the specified room.
 func (w *World) RoomItems(room RoomID) []Item {
 	w.mu.RLock()
@@ -949,6 +1007,19 @@ func (w *World) RoomItems(room RoomID) []Item {
 	items := make([]Item, len(r.Items))
 	copy(items, r.Items)
 	return items
+}
+
+// RoomResets returns a copy of the reset definitions for the specified room.
+func (w *World) RoomResets(room RoomID) []RoomReset {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	r, ok := w.rooms[room]
+	if !ok || len(r.Resets) == 0 {
+		return nil
+	}
+	resets := make([]RoomReset, len(r.Resets))
+	copy(resets, r.Resets)
+	return resets
 }
 
 // PlayerInventory returns a copy of the player's carried items.
@@ -1268,6 +1339,307 @@ func (w *World) LinkRooms(from RoomID, direction string, to RoomID, back string)
 	}
 	w.mu.Unlock()
 	return nil
+}
+
+// UpsertRoomNPC creates or updates an NPC reset for the specified room.
+func (w *World) UpsertRoomNPC(roomID RoomID, name, autoGreet string) (*NPC, error) {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return nil, fmt.Errorf("npc name must not be empty")
+	}
+	greet := strings.TrimSpace(autoGreet)
+	w.mu.Lock()
+	room, ok := w.rooms[roomID]
+	if !ok {
+		w.mu.Unlock()
+		return nil, fmt.Errorf("unknown room: %s", roomID)
+	}
+	prevNPCs := append([]NPC(nil), room.NPCs...)
+	prevResets := append([]RoomReset(nil), room.Resets...)
+	npc := NPC{Name: trimmed, AutoGreet: greet}
+	idx := findNPCIndex(room.NPCs, trimmed)
+	if idx >= 0 {
+		room.NPCs[idx] = npc
+	} else {
+		room.NPCs = append(room.NPCs, npc)
+	}
+	resetIdx := findResetIndex(room.Resets, ResetKindNPC, trimmed)
+	if resetIdx >= 0 {
+		room.Resets[resetIdx].Name = trimmed
+		room.Resets[resetIdx].AutoGreet = greet
+		if room.Resets[resetIdx].Count < 1 {
+			room.Resets[resetIdx].Count = 1
+		}
+	} else {
+		room.Resets = append(room.Resets, RoomReset{Kind: ResetKindNPC, Name: trimmed, AutoGreet: greet, Count: 1})
+	}
+	prevSource, hadSource := w.markRoomAsBuilderLocked(roomID)
+	if err := w.persistBuilderRoomsLocked(); err != nil {
+		room.NPCs = prevNPCs
+		room.Resets = prevResets
+		if hadSource {
+			w.roomSources[roomID] = prevSource
+		} else {
+			delete(w.roomSources, roomID)
+		}
+		w.mu.Unlock()
+		return nil, err
+	}
+	w.mu.Unlock()
+	return &npc, nil
+}
+
+// RemoveRoomNPC deletes an NPC definition and associated reset from a room.
+func (w *World) RemoveRoomNPC(roomID RoomID, name string) error {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return fmt.Errorf("npc name must not be empty")
+	}
+	w.mu.Lock()
+	room, ok := w.rooms[roomID]
+	if !ok {
+		w.mu.Unlock()
+		return fmt.Errorf("unknown room: %s", roomID)
+	}
+	idx := findNPCIndex(room.NPCs, trimmed)
+	if idx == -1 {
+		w.mu.Unlock()
+		return fmt.Errorf("npc %s not found", trimmed)
+	}
+	prevNPCs := append([]NPC(nil), room.NPCs...)
+	prevResets := append([]RoomReset(nil), room.Resets...)
+	room.NPCs = append(room.NPCs[:idx], room.NPCs[idx+1:]...)
+	resetIdx := findResetIndex(room.Resets, ResetKindNPC, trimmed)
+	if resetIdx >= 0 {
+		room.Resets = append(room.Resets[:resetIdx], room.Resets[resetIdx+1:]...)
+	}
+	prevSource, hadSource := w.markRoomAsBuilderLocked(roomID)
+	if err := w.persistBuilderRoomsLocked(); err != nil {
+		room.NPCs = prevNPCs
+		room.Resets = prevResets
+		if hadSource {
+			w.roomSources[roomID] = prevSource
+		} else {
+			delete(w.roomSources, roomID)
+		}
+		w.mu.Unlock()
+		return err
+	}
+	w.mu.Unlock()
+	return nil
+}
+
+// UpsertRoomItemReset creates or updates an item reset for a room.
+func (w *World) UpsertRoomItemReset(roomID RoomID, name, description string) (*RoomReset, error) {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return nil, fmt.Errorf("item name must not be empty")
+	}
+	desc := strings.TrimSpace(description)
+	w.mu.Lock()
+	room, ok := w.rooms[roomID]
+	if !ok {
+		w.mu.Unlock()
+		return nil, fmt.Errorf("unknown room: %s", roomID)
+	}
+	prevItems := append([]Item(nil), room.Items...)
+	prevResets := append([]RoomReset(nil), room.Resets...)
+	idx := findResetIndex(room.Resets, ResetKindItem, trimmed)
+	if idx >= 0 {
+		room.Resets[idx].Name = trimmed
+		room.Resets[idx].Description = desc
+		if room.Resets[idx].Count < 1 {
+			room.Resets[idx].Count = 1
+		}
+	} else {
+		room.Resets = append(room.Resets, RoomReset{Kind: ResetKindItem, Name: trimmed, Description: desc, Count: 1})
+		idx = len(room.Resets) - 1
+	}
+	w.applyRoomResetsLocked(room)
+	result := room.Resets[idx]
+	prevSource, hadSource := w.markRoomAsBuilderLocked(roomID)
+	if err := w.persistBuilderRoomsLocked(); err != nil {
+		room.Items = prevItems
+		room.Resets = prevResets
+		if hadSource {
+			w.roomSources[roomID] = prevSource
+		} else {
+			delete(w.roomSources, roomID)
+		}
+		w.mu.Unlock()
+		return nil, err
+	}
+	w.mu.Unlock()
+	return &result, nil
+}
+
+// RemoveRoomItemReset deletes an item reset and any matching items from a room.
+func (w *World) RemoveRoomItemReset(roomID RoomID, name string) error {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return fmt.Errorf("item name must not be empty")
+	}
+	w.mu.Lock()
+	room, ok := w.rooms[roomID]
+	if !ok {
+		w.mu.Unlock()
+		return fmt.Errorf("unknown room: %s", roomID)
+	}
+	resetIdx := findResetIndex(room.Resets, ResetKindItem, trimmed)
+	if resetIdx == -1 {
+		w.mu.Unlock()
+		return fmt.Errorf("item %s not found", trimmed)
+	}
+	prevItems := append([]Item(nil), room.Items...)
+	prevResets := append([]RoomReset(nil), room.Resets...)
+	room.Resets = append(room.Resets[:resetIdx], room.Resets[resetIdx+1:]...)
+	filtered := room.Items[:0]
+	for _, item := range room.Items {
+		if strings.EqualFold(item.Name, trimmed) {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	room.Items = filtered
+	prevSource, hadSource := w.markRoomAsBuilderLocked(roomID)
+	if err := w.persistBuilderRoomsLocked(); err != nil {
+		room.Items = prevItems
+		room.Resets = prevResets
+		if hadSource {
+			w.roomSources[roomID] = prevSource
+		} else {
+			delete(w.roomSources, roomID)
+		}
+		w.mu.Unlock()
+		return err
+	}
+	w.mu.Unlock()
+	return nil
+}
+
+// ApplyRoomResets enforces the configured resets for a room.
+func (w *World) ApplyRoomResets(roomID RoomID) error {
+	w.mu.Lock()
+	room, ok := w.rooms[roomID]
+	if !ok {
+		w.mu.Unlock()
+		return fmt.Errorf("unknown room: %s", roomID)
+	}
+	prevItems := append([]Item(nil), room.Items...)
+	prevNPCs := append([]NPC(nil), room.NPCs...)
+	prevResets := append([]RoomReset(nil), room.Resets...)
+	w.applyRoomResetsLocked(room)
+	prevSource, hadSource := w.markRoomAsBuilderLocked(roomID)
+	if err := w.persistBuilderRoomsLocked(); err != nil {
+		room.Items = prevItems
+		room.NPCs = prevNPCs
+		room.Resets = prevResets
+		if hadSource {
+			w.roomSources[roomID] = prevSource
+		} else {
+			delete(w.roomSources, roomID)
+		}
+		w.mu.Unlock()
+		return err
+	}
+	w.mu.Unlock()
+	return nil
+}
+
+// CloneRoomPopulation copies NPCs, items, and resets from one room into another.
+func (w *World) CloneRoomPopulation(source, target RoomID) error {
+	if source == "" {
+		return fmt.Errorf("source room must not be empty")
+	}
+	w.mu.Lock()
+	from, ok := w.rooms[source]
+	if !ok {
+		w.mu.Unlock()
+		return fmt.Errorf("unknown room: %s", source)
+	}
+	to, ok := w.rooms[target]
+	if !ok {
+		w.mu.Unlock()
+		return fmt.Errorf("unknown room: %s", target)
+	}
+	prevItems := append([]Item(nil), to.Items...)
+	prevNPCs := append([]NPC(nil), to.NPCs...)
+	prevResets := append([]RoomReset(nil), to.Resets...)
+
+	if len(from.Items) > 0 {
+		items := make([]Item, len(from.Items))
+		copy(items, from.Items)
+		to.Items = items
+	} else {
+		to.Items = nil
+	}
+	if len(from.NPCs) > 0 {
+		npcs := make([]NPC, len(from.NPCs))
+		copy(npcs, from.NPCs)
+		to.NPCs = npcs
+	} else {
+		to.NPCs = nil
+	}
+	if len(from.Resets) > 0 {
+		resets := make([]RoomReset, len(from.Resets))
+		copy(resets, from.Resets)
+		to.Resets = resets
+	} else {
+		to.Resets = nil
+	}
+	w.applyRoomResetsLocked(to)
+	prevSource, hadSource := w.markRoomAsBuilderLocked(target)
+	if err := w.persistBuilderRoomsLocked(); err != nil {
+		to.Items = prevItems
+		to.NPCs = prevNPCs
+		to.Resets = prevResets
+		if hadSource {
+			w.roomSources[target] = prevSource
+		} else {
+			delete(w.roomSources, target)
+		}
+		w.mu.Unlock()
+		return err
+	}
+	w.mu.Unlock()
+	return nil
+}
+
+func (w *World) applyRoomResetsLocked(room *Room) {
+	if room == nil {
+		return
+	}
+	for i := range room.Resets {
+		reset := room.Resets[i]
+		if reset.Count < 1 {
+			reset.Count = 1
+			room.Resets[i].Count = 1
+		}
+		switch reset.Kind {
+		case ResetKindNPC:
+			npc := NPC{Name: reset.Name, AutoGreet: reset.AutoGreet}
+			idx := findNPCIndex(room.NPCs, reset.Name)
+			if idx >= 0 {
+				room.NPCs[idx] = npc
+			} else {
+				room.NPCs = append(room.NPCs, npc)
+			}
+		case ResetKindItem:
+			existing := 0
+			for j := range room.Items {
+				if strings.EqualFold(room.Items[j].Name, reset.Name) {
+					existing++
+					if reset.Description != "" {
+						room.Items[j].Description = reset.Description
+					}
+				}
+			}
+			for existing < reset.Count {
+				room.Items = append(room.Items, Item{Name: reset.Name, Description: reset.Description})
+				existing++
+			}
+		}
+	}
 }
 
 // PlayerLocations returns the set of connected players and their rooms sorted by name.
