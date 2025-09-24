@@ -41,6 +41,11 @@ func HighlightNPCName(name string) string {
 	return Style(name, AnsiBold, AnsiMagenta)
 }
 
+// HighlightItemName formats item names consistently.
+func HighlightItemName(name string) string {
+	return Style(name, AnsiBold, AnsiYellow)
+}
+
 // Trim normalises a telnet input line.
 func Trim(s string) string {
 	return strings.TrimSpace(strings.ReplaceAll(s, "\r", ""))

@@ -10,7 +10,17 @@
         "n": "astral_gallery",
         "s": "start",
         "u": "observatory"
-      }
+      },
+      "items": [
+        {
+          "name": "Whispering Quill",
+          "description": "It trembles with unscribed ideas, eager to note your discoveries."
+        },
+        {
+          "name": "Star Chart",
+          "description": "Constellations rearrange themselves to trace paths through the stacks."
+        }
+      ]
     },
     {
       "id": "scriptorium",

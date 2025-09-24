@@ -11,7 +11,17 @@
         "n": "start",
         "s": "moonpool",
         "w": "root_caves"
-      }
+      },
+      "items": [
+        {
+          "name": "Luminous Petal",
+          "description": "It sheds soft light, brightening when held near hidden paths."
+        },
+        {
+          "name": "Vial of Dew",
+          "description": "The droplets chime like tiny bells whenever danger nears."
+        }
+      ]
     },
     {
       "id": "glasshouse",

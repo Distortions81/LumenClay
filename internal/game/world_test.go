@@ -1,6 +1,7 @@
 package game
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -21,6 +22,58 @@ func TestWorldMoveUnknownRoom(t *testing.T) {
 	want := "unknown room: missing"
 	if err.Error() != want {
 		t.Fatalf("unexpected error: got %q, want %q", err.Error(), want)
+	}
+}
+
+func TestWorldTakeDropItem(t *testing.T) {
+	roomID := RoomID("store")
+	item := Item{Name: "Crystal Key"}
+	world := &World{
+		rooms: map[RoomID]*Room{
+			roomID: {
+				ID:    roomID,
+				Exits: map[string]RoomID{},
+				Items: []Item{item},
+			},
+		},
+		players: make(map[string]*Player),
+	}
+	player := &Player{Name: "Collector", Room: roomID, Alive: true}
+	world.players[player.Name] = player
+
+	taken, err := world.TakeItem(player, "crystal key")
+	if err != nil {
+		t.Fatalf("TakeItem returned error: %v", err)
+	}
+	if taken == nil || taken.Name != item.Name {
+		t.Fatalf("TakeItem returned %+v, want %+v", taken, item)
+	}
+	if len(world.rooms[roomID].Items) != 0 {
+		t.Fatalf("expected room to be empty after taking item, got %v", world.rooms[roomID].Items)
+	}
+	if len(player.Inventory) != 1 || player.Inventory[0].Name != item.Name {
+		t.Fatalf("player inventory = %#v, want Crystal Key", player.Inventory)
+	}
+
+	dropped, err := world.DropItem(player, "Crystal Key")
+	if err != nil {
+		t.Fatalf("DropItem returned error: %v", err)
+	}
+	if dropped == nil || dropped.Name != item.Name {
+		t.Fatalf("DropItem returned %+v, want %+v", dropped, item)
+	}
+	if len(player.Inventory) != 0 {
+		t.Fatalf("expected empty inventory, got %#v", player.Inventory)
+	}
+	if len(world.rooms[roomID].Items) != 1 || world.rooms[roomID].Items[0].Name != item.Name {
+		t.Fatalf("room items = %#v, want Crystal Key", world.rooms[roomID].Items)
+	}
+
+	if _, err := world.DropItem(player, "Crystal Key"); !errors.Is(err, ErrItemNotCarried) {
+		t.Fatalf("expected ErrItemNotCarried, got %v", err)
+	}
+	if _, err := world.TakeItem(player, "missing"); !errors.Is(err, ErrItemNotFound) {
+		t.Fatalf("expected ErrItemNotFound, got %v", err)
 	}
 }
 

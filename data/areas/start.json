@@ -11,6 +11,16 @@
         "s": "garden",
         "w": "market"
       },
+      "items": [
+        {
+          "name": "Weathered Compass",
+          "description": "Its needle spins lazily, pointing toward adventures yet untaken."
+        },
+        {
+          "name": "Folded Map",
+          "description": "Ink sketches reveal hints about the four neighboring districts."
+        }
+      ],
       "npcs": [
         {
           "name": "Stone Guide",

@@ -11,7 +11,17 @@
         "s": "atelier_dormitory",
         "u": "loft",
         "w": "start"
-      }
+      },
+      "items": [
+        {
+          "name": "Clockwork Beetle",
+          "description": "Tiny gears whir as it folds into a pocket-sized multitool."
+        },
+        {
+          "name": "Soldering Wand",
+          "description": "Its tip glows when it senses an unfinished invention."
+        }
+      ]
     },
     {
       "id": "gearworks",
