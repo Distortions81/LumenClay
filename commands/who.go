@@ -3,7 +3,7 @@ package commands
 import (
 	"strings"
 
-	"aiMud/internal/game"
+	"LumenClay/internal/game"
 )
 
 var Who = Define(Definition{

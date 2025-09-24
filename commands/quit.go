@@ -1,6 +1,6 @@
 package commands
 
-import "aiMud/internal/game"
+import "LumenClay/internal/game"
 
 var Quit = Define(Definition{
 	Name:        "quit",

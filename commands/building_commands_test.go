@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"aiMud/internal/game"
+	"LumenClay/internal/game"
 )
 
 func TestDigRequiresBuilder(t *testing.T) {

@@ -1,4 +1,4 @@
-module aiMud
+module LumenClay
 
 go 1.25.0
 

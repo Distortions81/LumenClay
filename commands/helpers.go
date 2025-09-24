@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"aiMud/internal/game"
+	"LumenClay/internal/game"
 )
 
 func sendChannelStatus(world *game.World, player *game.Player) {

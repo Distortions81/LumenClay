@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"aiMud/internal/game"
+	"LumenClay/internal/game"
 )
 
 func TestDispatchGoMovesPlayerAndNotifiesRooms(t *testing.T) {

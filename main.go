@@ -4,8 +4,8 @@ import (
 	"flag"
 	"log"
 
-	"aiMud/commands"
-	"aiMud/internal/game"
+	"LumenClay/commands"
+	"LumenClay/internal/game"
 )
 
 func main() {

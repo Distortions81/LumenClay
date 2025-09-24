@@ -1,10 +1,9 @@
-package commands
 
 import (
 	"fmt"
 	"strings"
 
-	"aiMud/internal/game"
+	"LumenClay/internal/game"
 )
 
 var SetHome = Define(Definition{

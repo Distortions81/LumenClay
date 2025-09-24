@@ -62,8 +62,8 @@ func generateSelfSignedCert(certFile, keyFile, addr string) error {
 	tmpl := x509.Certificate{
 		SerialNumber: big.NewInt(now.UnixNano()),
 		Subject: pkix.Name{
-			CommonName:   "aiMud",
-			Organization: []string{"aiMud"},
+			CommonName:   "LumenClay",
+			Organization: []string{"LumenClay"},
 		},
 		NotBefore:             now.Add(-time.Hour),
 		NotAfter:              now.Add(365 * 24 * time.Hour),

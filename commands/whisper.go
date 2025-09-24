@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"aiMud/internal/game"
+	"LumenClay/internal/game"
 )
 
 var Whisper = Define(Definition{

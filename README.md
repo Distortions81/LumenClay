@@ -1,6 +1,6 @@
-# aiMud
+# LumenClay
 
-aiMud is a tiny, ANSI-friendly MUD server written in Go. This README covers how to build and run the server, connect as a player, and extend the built-in world data.
+LumenClay is a tiny, ANSI-friendly MUD server written in Go. This README covers how to build and run the server, connect as a player, and extend the built-in world data.
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ Fetch dependencies and compile the server with Go:
 go build ./...
 ```
 
-This produces an `aiMud` binary in the repository root. You can also run the server directly without creating a binary by using `go run .` (see below).
+This produces an `LumenClay` binary in the repository root. You can also run the server directly without creating a binary by using `go run .` (see below).
 
 ## Running the server
 

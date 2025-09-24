@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"aiMud/internal/game"
+	"LumenClay/internal/game"
 )
 
 // Definition describes a single command's metadata.
