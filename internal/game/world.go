@@ -157,10 +157,20 @@ type World struct {
 }
 
 type accountRecord struct {
-	Password string          `json:"password"`
-	Room     RoomID          `json:"room,omitempty"`
-	Home     RoomID          `json:"home,omitempty"`
-	Channels map[string]bool `json:"channels,omitempty"`
+	Password    string          `json:"password"`
+	Room        RoomID          `json:"room,omitempty"`
+	Home        RoomID          `json:"home,omitempty"`
+	Channels    map[string]bool `json:"channels,omitempty"`
+	CreatedAt   time.Time       `json:"created_at,omitempty"`
+	LastLogin   time.Time       `json:"last_login,omitempty"`
+	TotalLogins int             `json:"total_logins,omitempty"`
+}
+
+// AccountStats summarises persistent account metadata used for in-game displays.
+type AccountStats struct {
+	CreatedAt   time.Time
+	LastLogin   time.Time
+	TotalLogins int
 }
 
 // PlayerLocation describes the room occupied by a connected player.
@@ -288,11 +298,15 @@ func (a *AccountManager) Register(name, pass string) error {
 	if _, ok := a.accounts[name]; ok {
 		return fmt.Errorf("account already exists")
 	}
+	now := time.Now().UTC()
 	a.accounts[name] = accountRecord{
-		Password: string(hashed),
-		Room:     StartRoom,
-		Home:     StartRoom,
-		Channels: encodeChannelSettings(defaultChannelSettings()),
+		Password:    string(hashed),
+		Room:        StartRoom,
+		Home:        StartRoom,
+		Channels:    encodeChannelSettings(defaultChannelSettings()),
+		CreatedAt:   now,
+		LastLogin:   time.Time{},
+		TotalLogins: 0,
 	}
 	if err := a.saveLocked(); err != nil {
 		delete(a.accounts, name)
@@ -352,6 +366,38 @@ func (a *AccountManager) SaveProfile(name string, profile PlayerProfile) error {
 	return a.saveLocked()
 }
 
+// RecordLogin updates bookkeeping for a successful login.
+func (a *AccountManager) RecordLogin(name string, when time.Time) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	record, ok := a.accounts[name]
+	if !ok {
+		return fmt.Errorf("account not found")
+	}
+	if record.CreatedAt.IsZero() {
+		record.CreatedAt = when.UTC()
+	}
+	record.LastLogin = when.UTC()
+	record.TotalLogins++
+	a.accounts[name] = record
+	return a.saveLocked()
+}
+
+// Stats returns account metadata for display purposes.
+func (a *AccountManager) Stats(name string) (AccountStats, bool) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	record, ok := a.accounts[name]
+	if !ok {
+		return AccountStats{}, false
+	}
+	return AccountStats{
+		CreatedAt:   record.CreatedAt,
+		LastLogin:   record.LastLogin,
+		TotalLogins: record.TotalLogins,
+	}, true
+}
+
 func NewWorld(areasPath string) (*World, error) {
 	rooms, sources, err := loadRooms(areasPath)
 	if err != nil {
@@ -380,6 +426,17 @@ func (w *World) AttachAccountManager(accounts *AccountManager) {
 	w.mu.Lock()
 	w.accounts = accounts
 	w.mu.Unlock()
+}
+
+// AccountStats exposes account metadata for the provided name.
+func (w *World) AccountStats(name string) (AccountStats, bool) {
+	w.mu.RLock()
+	accounts := w.accounts
+	w.mu.RUnlock()
+	if accounts == nil {
+		return AccountStats{}, false
+	}
+	return accounts.Stats(name)
 }
 
 // AddPlayerForTest inserts a player into the world's tracking structures.

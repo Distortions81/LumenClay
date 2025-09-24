@@ -236,6 +236,83 @@ func TestAccountManagerProfilePersistence(t *testing.T) {
 	}
 }
 
+func TestAccountManagerRecordLoginAndStats(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "accounts.json")
+
+	manager, err := NewAccountManager(path)
+	if err != nil {
+		t.Fatalf("NewAccountManager: %v", err)
+	}
+	if err := manager.Register("explorer", "secretpw"); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	stats, ok := manager.Stats("explorer")
+	if !ok {
+		t.Fatalf("Stats should return data for registered account")
+	}
+	if stats.CreatedAt.IsZero() {
+		t.Fatalf("expected CreatedAt to be recorded")
+	}
+	if !stats.LastLogin.IsZero() {
+		t.Fatalf("LastLogin should be zero before first login")
+	}
+	if stats.TotalLogins != 0 {
+		t.Fatalf("TotalLogins = %d, want 0", stats.TotalLogins)
+	}
+
+	firstLogin := time.Date(2025, time.January, 2, 15, 4, 5, 0, time.UTC)
+	if err := manager.RecordLogin("explorer", firstLogin); err != nil {
+		t.Fatalf("RecordLogin first: %v", err)
+	}
+
+	stats, ok = manager.Stats("explorer")
+	if !ok {
+		t.Fatalf("Stats should still return data")
+	}
+	if stats.TotalLogins != 1 {
+		t.Fatalf("TotalLogins = %d, want 1", stats.TotalLogins)
+	}
+	if !stats.LastLogin.Equal(firstLogin) {
+		t.Fatalf("LastLogin = %v, want %v", stats.LastLogin, firstLogin)
+	}
+
+	secondLogin := firstLogin.Add(6 * time.Hour)
+	if err := manager.RecordLogin("explorer", secondLogin); err != nil {
+		t.Fatalf("RecordLogin second: %v", err)
+	}
+
+	stats, ok = manager.Stats("explorer")
+	if !ok {
+		t.Fatalf("Stats should continue returning data")
+	}
+	if stats.TotalLogins != 2 {
+		t.Fatalf("TotalLogins = %d, want 2", stats.TotalLogins)
+	}
+	if !stats.LastLogin.Equal(secondLogin) {
+		t.Fatalf("LastLogin = %v, want %v", stats.LastLogin, secondLogin)
+	}
+
+	reloaded, err := NewAccountManager(path)
+	if err != nil {
+		t.Fatalf("NewAccountManager reload: %v", err)
+	}
+	persisted, ok := reloaded.Stats("explorer")
+	if !ok {
+		t.Fatalf("Stats should return data after reload")
+	}
+	if !persisted.CreatedAt.Equal(stats.CreatedAt) {
+		t.Fatalf("CreatedAt mismatch after reload: got %v want %v", persisted.CreatedAt, stats.CreatedAt)
+	}
+	if !persisted.LastLogin.Equal(stats.LastLogin) {
+		t.Fatalf("LastLogin mismatch after reload: got %v want %v", persisted.LastLogin, stats.LastLogin)
+	}
+	if persisted.TotalLogins != stats.TotalLogins {
+		t.Fatalf("TotalLogins mismatch after reload: got %d want %d", persisted.TotalLogins, stats.TotalLogins)
+	}
+}
+
 func TestAccountManagerLoadLegacyFormat(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "accounts.json")
