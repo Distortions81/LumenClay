@@ -9,6 +9,7 @@ import (
 var Move = Define(Definition{
 	Name:        "go",
 	Aliases:     []string{"n", "s", "e", "w", "u", "d", "up", "down"},
+	Shortcut:    "g",
 	Usage:       "go <direction>",
 	Description: "move (n/s/e/w/u/d and more)",
 }, func(ctx *Context) bool {
