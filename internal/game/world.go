@@ -24,6 +24,12 @@ type Room struct {
 	Title       string            `json:"title"`
 	Description string            `json:"description"`
 	Exits       map[string]RoomID `json:"exits"`
+	NPCs        []NPC             `json:"npcs"`
+}
+
+type NPC struct {
+	Name      string `json:"name"`
+	AutoGreet string `json:"auto_greet"`
 }
 
 type Channel string
