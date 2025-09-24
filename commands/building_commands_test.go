@@ -160,3 +160,150 @@ func TestLinkCreatesBidirectionalExits(t *testing.T) {
 		t.Fatalf("reverse exit incorrect: %v", hall.Exits)
 	}
 }
+
+func TestResetRequiresBuilder(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"start": {
+			ID:          "start",
+			Title:       "Start",
+			Description: "Start room.",
+			Exits:       map[string]game.RoomID{},
+		},
+	})
+	player := newTestPlayer("Visitor", "start")
+	world.AddPlayerForTest(player)
+
+	if quit := Dispatch(world, player, "reset add npc Stone Guide"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	msgs := drainOutput(player.Output)
+	sawWarning := false
+	for _, msg := range msgs {
+		if strings.Contains(msg, "Only builders or admins may manage resets") {
+			sawWarning = true
+		}
+	}
+	if !sawWarning {
+		t.Fatalf("expected warning, got %v", msgs)
+	}
+}
+
+func TestResetAddNPCAndList(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"start": {
+			ID:          "start",
+			Title:       "Start",
+			Description: "Start room.",
+			Exits:       map[string]game.RoomID{},
+		},
+	})
+	builder := newTestPlayer("Builder", "start")
+	builder.IsBuilder = true
+	world.AddPlayerForTest(builder)
+
+	if quit := Dispatch(world, builder, "reset add npc Stone Guide = Welcome to the crossroads!"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	room, ok := world.GetRoom("start")
+	if !ok {
+		t.Fatalf("current room missing")
+	}
+	if len(room.NPCs) != 1 || room.NPCs[0].Name != "Stone Guide" {
+		t.Fatalf("expected npc to be added, got %+v", room.NPCs)
+	}
+	if len(room.Resets) != 1 || room.Resets[0].Kind != game.ResetKindNPC {
+		t.Fatalf("expected npc reset, got %+v", room.Resets)
+	}
+
+	if quit := Dispatch(world, builder, "reset list"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	msgs := drainOutput(builder.Output)
+	listed := false
+	for _, msg := range msgs {
+		if strings.Contains(msg, "Stone Guide") {
+			listed = true
+		}
+	}
+	if !listed {
+		t.Fatalf("expected npc listing, got %v", msgs)
+	}
+}
+
+func TestResetAddItemAndApply(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"start": {
+			ID:          "start",
+			Title:       "Start",
+			Description: "Start room.",
+			Exits:       map[string]game.RoomID{},
+		},
+	})
+	builder := newTestPlayer("Builder", "start")
+	builder.IsBuilder = true
+	world.AddPlayerForTest(builder)
+
+	if quit := Dispatch(world, builder, "reset add item Shiny Coin = A gleaming coin."); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	room, ok := world.GetRoom("start")
+	if !ok {
+		t.Fatalf("current room missing")
+	}
+	if len(room.Items) != 1 || room.Items[0].Name != "Shiny Coin" {
+		t.Fatalf("expected item to spawn, got %+v", room.Items)
+	}
+	// Simulate the item being taken.
+	room.Items = nil
+
+	if quit := Dispatch(world, builder, "reset apply"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	room, _ = world.GetRoom("start")
+	if len(room.Items) == 0 {
+		t.Fatalf("expected item to respawn after apply")
+	}
+}
+
+func TestCloneCopiesPopulation(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"start": {
+			ID:          "start",
+			Title:       "Start",
+			Description: "Start room.",
+			Exits:       map[string]game.RoomID{},
+		},
+		"hall": {
+			ID:          "hall",
+			Title:       "Hall",
+			Description: "Marble hall.",
+			Exits:       map[string]game.RoomID{},
+			NPCs:        []game.NPC{{Name: "Marble Steward", AutoGreet: "Mind the echoes."}},
+			Items:       []game.Item{{Name: "Crystal Torch", Description: "A torch that glows softly."}},
+			Resets: []game.RoomReset{
+				{Kind: game.ResetKindNPC, Name: "Marble Steward", AutoGreet: "Mind the echoes.", Count: 1},
+				{Kind: game.ResetKindItem, Name: "Crystal Torch", Description: "A torch that glows softly.", Count: 1},
+			},
+		},
+	})
+	builder := newTestPlayer("Builder", "start")
+	builder.IsBuilder = true
+	world.AddPlayerForTest(builder)
+
+	if quit := Dispatch(world, builder, "clone hall"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	room, ok := world.GetRoom("start")
+	if !ok {
+		t.Fatalf("start room missing")
+	}
+	if len(room.NPCs) != 1 || room.NPCs[0].Name != "Marble Steward" {
+		t.Fatalf("expected npc to be cloned, got %+v", room.NPCs)
+	}
+	if len(room.Items) != 1 || room.Items[0].Name != "Crystal Torch" {
+		t.Fatalf("expected item to be cloned, got %+v", room.Items)
+	}
+	if len(room.Resets) != 2 {
+		t.Fatalf("expected resets to be cloned, got %+v", room.Resets)
+	}
+}
