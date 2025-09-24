@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"flag"
 	"fmt"
 	"math/big"
 	"net"
@@ -15,6 +14,16 @@ import (
 	"path/filepath"
 	"time"
 )
+
+// Dispatcher executes a command for the connected player.
+// Returning true indicates the connection should terminate.
+type Dispatcher func(*World, *Player, string) bool
+
+type serverConfig struct {
+	enableTLS bool
+	certFile  string
+	keyFile   string
+}
 
 func ensureCertificate(certFile, keyFile, addr string) (tls.Certificate, bool, error) {
 	if cert, err := tls.LoadX509KeyPair(certFile, keyFile); err == nil {
@@ -104,7 +113,7 @@ func generateSelfSignedCert(certFile, keyFile, addr string) error {
 	return keyOut.Close()
 }
 
-func handleConn(conn net.Conn, world *World, accounts *AccountManager) {
+func handleConn(conn net.Conn, world *World, accounts *AccountManager, dispatcher Dispatcher) {
 	session := NewTelnetSession(conn)
 	defer session.Close()
 	username, isAdmin, err := login(session, accounts)
@@ -153,12 +162,29 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager) {
 	world.removePlayer(p.Name)
 }
 
-func main() {
-	addr := flag.String("addr", ":4000", "TCP address to listen on")
-	enableTLS := flag.Bool("tls", false, "Enable TLS for client connections")
-	certFile := flag.String("tls-cert", "cert.pem", "Path to TLS certificate file")
-	keyFile := flag.String("tls-key", "key.pem", "Path to TLS private key file")
-	flag.Parse()
+// ListenAndServe starts a MUD server on the provided address using the
+// account database at accountsPath. The dispatcher is used to execute player
+// commands. It returns when the listener encounters a fatal error.
+func ListenAndServe(addr, accountsPath string, dispatcher Dispatcher) error {
+	return listenAndServe(addr, accountsPath, dispatcher, serverConfig{})
+}
+
+// ListenAndServeTLS behaves like ListenAndServe but secures the connection
+// using TLS with the provided certificate and key files. If the files do not
+// exist, a self-signed certificate is generated.
+func ListenAndServeTLS(addr, accountsPath, certFile, keyFile string, dispatcher Dispatcher) error {
+	cfg := serverConfig{
+		enableTLS: true,
+		certFile:  certFile,
+		keyFile:   keyFile,
+	}
+	return listenAndServe(addr, accountsPath, dispatcher, cfg)
+}
+
+func listenAndServe(addr, accountsPath string, dispatcher Dispatcher, cfg serverConfig) error {
+	if dispatcher == nil {
+		return fmt.Errorf("dispatcher must not be nil")
+	}
 
 	world, err := NewWorld()
 	if err != nil {
@@ -170,37 +196,34 @@ func main() {
 	}
 
 	var ln net.Listener
-	if *enableTLS {
-		cert, created, err := ensureCertificate(*certFile, *keyFile, *addr)
+	if cfg.enableTLS {
+		cert, created, err := ensureCertificate(cfg.certFile, cfg.keyFile, addr)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		if created {
-			fmt.Printf("Generated self-signed TLS certificate at %s and %s\n", *certFile, *keyFile)
+			fmt.Printf("Generated self-signed TLS certificate at %s and %s\n", cfg.certFile, cfg.keyFile)
 		}
 		tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}}
-		ln, err = tls.Listen("tcp", *addr, tlsConfig)
+		ln, err = tls.Listen("tcp", addr, tlsConfig)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		fmt.Printf("MUD listening on %s (TLS enabled, telnet + ANSI ready)\n", ln.Addr())
 	} else {
-		ln, err = net.Listen("tcp", *addr)
+		ln, err = net.Listen("tcp", addr)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		fmt.Printf("MUD listening on %s (telnet + ANSI ready)\n", ln.Addr())
 	}
+	defer ln.Close()
 
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			continue
+			return err
 		}
 		go handleConn(conn, world, accounts, dispatcher)
 	}
-
-	// Unreachable, but included for completeness.
-	// nolint:nilerr
-	return nil
 }
