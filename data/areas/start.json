@@ -10,7 +10,13 @@
         "n": "library",
         "s": "garden",
         "w": "market"
-      }
+      },
+      "npcs": [
+        {
+          "name": "Stone Guide",
+          "auto_greet": "Welcome to the crossroads. Venture boldly, traveler!"
+        }
+      ]
     }
   ]
 }

@@ -1,6 +1,9 @@
 package game
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestExitListSortsDirections(t *testing.T) {
 	r := &Room{
@@ -40,5 +43,45 @@ func TestFilterOutRemovesName(t *testing.T) {
 	}
 	if len(list) != 3 {
 		t.Fatalf("FilterOut() modified input slice: %v", list)
+	}
+}
+
+func TestEnterRoomTriggersNPCGreeting(t *testing.T) {
+	world := &World{
+		rooms: map[RoomID]*Room{
+			"start": {
+				ID:          "start",
+				Title:       "Test Room",
+				Description: "A place for testing.",
+				Exits:       map[string]RoomID{},
+				NPCs: []NPC{
+					{
+						Name:      "Guide",
+						AutoGreet: "Welcome to the test hall!",
+					},
+				},
+			},
+		},
+		players: make(map[string]*Player),
+	}
+	player := &Player{
+		Name:   "Hero",
+		Room:   "start",
+		Output: make(chan string, 4),
+		Alive:  true,
+	}
+	world.players[player.Name] = player
+
+	EnterRoom(world, player, "")
+
+	// First output is the room description.
+	<-player.Output
+	// Second output should contain the NPC greeting.
+	greet := <-player.Output
+	if !strings.Contains(greet, "Guide") {
+		t.Fatalf("NPC greeting missing name: %q", greet)
+	}
+	if !strings.Contains(greet, "Welcome to the test hall!") {
+		t.Fatalf("NPC greeting missing text: %q", greet)
 	}
 }
