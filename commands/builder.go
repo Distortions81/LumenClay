@@ -11,6 +11,7 @@ var Builder = Define(Definition{
 	Name:        "builder",
 	Usage:       "builder <player> <on|off>",
 	Description: "grant or revoke builder rights (admin only)",
+	Group:       GroupAdmin,
 }, func(ctx *Context) bool {
 	if !ctx.Player.IsAdmin {
 		ctx.Player.Output <- game.Ansi(game.Style("\r\nOnly admins may manage builders.", game.AnsiYellow))

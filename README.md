@@ -46,6 +46,13 @@ and you can override these paths with the `-cert` and `-key` flags:
 go run . -tls -cert /path/to/cert.pem -key /path/to/key.pem
 ```
 
+Choose which account should receive administrator privileges by using the `-admin` flag (case-insensitive). For example, to grant the
+`Wizard` account admin rights:
+
+```bash
+go run . -admin Wizard
+```
+
 When the specified certificate or key files do not exist, `ListenAndServeTLS` automatically generates a self-signed certificate the
 first time the server starts and reuses it on subsequent runs.
 
@@ -65,7 +72,7 @@ If the `telnet` command is unavailable on your platform, you can use `nc localho
 
 - When you connect, the server prompts for a username. Entering a new name automatically starts account creation.
 - You will be asked to supply a password of at least six characters. Passwords are stored hashed in `data/accounts.json`.
-- Logging in with the username `admin` grants administrator privileges after the password is set, allowing access to administrative commands such as `reboot`.
+- Logging in with the username specified by the `-admin` flag (default `admin`) grants administrator privileges after the password is set, allowing access to administrative commands such as `reboot`.
 - You have up to five attempts to choose a valid username and three tries per login to enter the correct password before the connection is closed.
 
 ## Basic commands for new players
@@ -84,6 +91,8 @@ After logging in, type `help` (or `?`) to see the in-game reference. Common comm
 - `channel <name> <on|off>` / `channels` &mdash; Manage which chat channels you receive.
 - `quit` &mdash; Disconnect from the server.
 - `reboot` (admin only) &mdash; Reload the world data and return everyone to the starting room.
+- `buildhelp` (builders/admins) &mdash; List the online creation commands available to builders.
+- `wizhelp` (admin only) &mdash; List administrative commands such as `reboot` and `summon`.
 
 ## Extending the world data
 

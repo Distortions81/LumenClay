@@ -11,6 +11,7 @@ var Link = Define(Definition{
 	Name:        "link",
 	Usage:       "link <direction> <room> [return-direction]",
 	Description: "create exits between rooms (builders/admins only)",
+	Group:       GroupBuilder,
 }, func(ctx *Context) bool {
 	if !ctx.Player.IsAdmin && !ctx.Player.IsBuilder {
 		ctx.Player.Output <- game.Ansi(game.Style("\r\nOnly builders or admins may use link.", game.AnsiYellow))

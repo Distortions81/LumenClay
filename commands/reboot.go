@@ -6,6 +6,7 @@ var Reboot = Define(Definition{
 	Name:        "reboot",
 	Usage:       "reboot",
 	Description: "reload the world (admin only)",
+	Group:       GroupAdmin,
 }, func(ctx *Context) bool {
 	if !ctx.Player.IsAdmin {
 		ctx.Player.Output <- game.Ansi(game.Style("\r\nOnly admins may reboot the world.", game.AnsiYellow))

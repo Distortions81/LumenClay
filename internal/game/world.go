@@ -20,6 +20,8 @@ const DefaultAreasPath = "data/areas"
 // builderAreaFile stores rooms created or modified in-game.
 const builderAreaFile = "builder.json"
 
+const defaultAdminAccount = "admin"
+
 type RoomID string
 
 type Room struct {
@@ -150,20 +152,42 @@ type PlayerLocation struct {
 }
 
 type AccountManager struct {
-	mu       sync.RWMutex
-	accounts map[string]accountRecord
-	path     string
+	mu           sync.RWMutex
+	accounts     map[string]accountRecord
+	path         string
+	adminAccount string
 }
 
 func NewAccountManager(path string) (*AccountManager, error) {
 	manager := &AccountManager{
-		accounts: make(map[string]accountRecord),
-		path:     path,
+		accounts:     make(map[string]accountRecord),
+		path:         path,
+		adminAccount: defaultAdminAccount,
 	}
 	if err := manager.load(); err != nil {
 		return nil, err
 	}
 	return manager, nil
+}
+
+func (a *AccountManager) SetAdminAccount(name string) {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		trimmed = defaultAdminAccount
+	}
+	a.mu.Lock()
+	a.adminAccount = trimmed
+	a.mu.Unlock()
+}
+
+func (a *AccountManager) IsAdmin(name string) bool {
+	a.mu.RLock()
+	admin := a.adminAccount
+	a.mu.RUnlock()
+	if admin == "" {
+		admin = defaultAdminAccount
+	}
+	return strings.EqualFold(name, admin)
 }
 
 func (a *AccountManager) load() error {
