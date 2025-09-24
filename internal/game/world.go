@@ -26,6 +26,9 @@ type Room struct {
 	Exits       map[string]RoomID `json:"exits"`
 }
 
+// StartRoom is the default entry point for new players.
+const StartRoom RoomID = "start"
+
 type Channel string
 
 const (
@@ -59,6 +62,7 @@ func ChannelFromString(name string) (Channel, bool) {
 
 type Player struct {
 	Name     string
+	Account  string
 	Session  *TelnetSession
 	Room     RoomID
 	Output   chan string
@@ -66,6 +70,12 @@ type Player struct {
 	IsAdmin  bool
 	Channels map[Channel]bool
 	history  []time.Time
+}
+
+// PlayerProfile captures persistent player state and preferences.
+type PlayerProfile struct {
+	Room     RoomID
+	Channels map[Channel]bool
 }
 
 const (
@@ -94,18 +104,25 @@ type World struct {
 	rooms     map[RoomID]*Room
 	players   map[string]*Player
 	areasPath string
+	accounts  *AccountManager
+}
+
+type accountRecord struct {
+	Password string          `json:"password"`
+	Room     RoomID          `json:"room,omitempty"`
+	Channels map[string]bool `json:"channels,omitempty"`
 }
 
 type AccountManager struct {
-	mu    sync.RWMutex
-	creds map[string]string
-	path  string
+	mu       sync.RWMutex
+	accounts map[string]accountRecord
+	path     string
 }
 
 func NewAccountManager(path string) (*AccountManager, error) {
 	manager := &AccountManager{
-		creds: make(map[string]string),
-		path:  path,
+		accounts: make(map[string]accountRecord),
+		path:     path,
 	}
 	if err := manager.load(); err != nil {
 		return nil, err
@@ -118,20 +135,34 @@ func (a *AccountManager) load() error {
 	defer a.mu.Unlock()
 	data, err := os.ReadFile(a.path)
 	if errors.Is(err, os.ErrNotExist) {
+		a.accounts = make(map[string]accountRecord)
 		return nil
 	}
 	if err != nil {
 		return fmt.Errorf("read accounts file: %w", err)
 	}
 	if len(data) == 0 {
-		a.creds = make(map[string]string)
+		a.accounts = make(map[string]accountRecord)
 		return nil
 	}
-	var creds map[string]string
-	if err := json.Unmarshal(data, &creds); err != nil {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("decode accounts file: %w", err)
 	}
-	a.creds = creds
+	accounts := make(map[string]accountRecord, len(raw))
+	for name, blob := range raw {
+		var password string
+		if err := json.Unmarshal(blob, &password); err == nil {
+			accounts[name] = accountRecord{Password: password}
+			continue
+		}
+		var record accountRecord
+		if err := json.Unmarshal(blob, &record); err != nil {
+			return fmt.Errorf("decode account %s: %w", name, err)
+		}
+		accounts[name] = record
+	}
+	a.accounts = accounts
 	return nil
 }
 
@@ -146,7 +177,7 @@ func (a *AccountManager) saveLocked() error {
 	}
 	enc := json.NewEncoder(tmp)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(a.creds); err != nil {
+	if err := enc.Encode(a.accounts); err != nil {
 		tmp.Close()
 		os.Remove(tmp.Name())
 		return fmt.Errorf("write accounts file: %w", err)
@@ -165,7 +196,7 @@ func (a *AccountManager) saveLocked() error {
 func (a *AccountManager) Exists(name string) bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	_, ok := a.creds[name]
+	_, ok := a.accounts[name]
 	return ok
 }
 
@@ -176,12 +207,16 @@ func (a *AccountManager) Register(name, pass string) error {
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if _, ok := a.creds[name]; ok {
+	if _, ok := a.accounts[name]; ok {
 		return fmt.Errorf("account already exists")
 	}
-	a.creds[name] = string(hashed)
+	a.accounts[name] = accountRecord{
+		Password: string(hashed),
+		Room:     StartRoom,
+		Channels: encodeChannelSettings(defaultChannelSettings()),
+	}
 	if err := a.saveLocked(); err != nil {
-		delete(a.creds, name)
+		delete(a.accounts, name)
 		return err
 	}
 	return nil
@@ -189,12 +224,48 @@ func (a *AccountManager) Register(name, pass string) error {
 
 func (a *AccountManager) Authenticate(name, pass string) bool {
 	a.mu.RLock()
-	hashed, ok := a.creds[name]
+	record, ok := a.accounts[name]
 	a.mu.RUnlock()
 	if !ok {
 		return false
 	}
-	return bcrypt.CompareHashAndPassword([]byte(hashed), []byte(pass)) == nil
+	return bcrypt.CompareHashAndPassword([]byte(record.Password), []byte(pass)) == nil
+}
+
+// Profile retrieves the persisted state for a player. Defaults are returned for
+// unknown accounts.
+func (a *AccountManager) Profile(name string) PlayerProfile {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	profile := PlayerProfile{
+		Room:     StartRoom,
+		Channels: defaultChannelSettings(),
+	}
+	record, ok := a.accounts[name]
+	if !ok {
+		return profile
+	}
+	if record.Room != "" {
+		profile.Room = record.Room
+	}
+	if record.Channels != nil {
+		profile.Channels = decodeChannelSettings(record.Channels)
+	}
+	return profile
+}
+
+// SaveProfile persists the provided state for the named account.
+func (a *AccountManager) SaveProfile(name string, profile PlayerProfile) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	record, ok := a.accounts[name]
+	if !ok {
+		return fmt.Errorf("account not found")
+	}
+	record.Room = profile.Room
+	record.Channels = encodeChannelSettings(profile.Channels)
+	a.accounts[name] = record
+	return a.saveLocked()
 }
 
 func NewWorld(areasPath string) (*World, error) {
@@ -217,12 +288,22 @@ func NewWorldWithRooms(rooms map[RoomID]*Room) *World {
 	}
 }
 
+// AttachAccountManager wires the account persistence layer into the world.
+func (w *World) AttachAccountManager(accounts *AccountManager) {
+	w.mu.Lock()
+	w.accounts = accounts
+	w.mu.Unlock()
+}
+
 // AddPlayerForTest inserts a player into the world's tracking structures.
 func (w *World) AddPlayerForTest(p *Player) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.players == nil {
 		w.players = make(map[string]*Player)
+	}
+	if p.Account == "" {
+		p.Account = p.Name
 	}
 	w.players[p.Name] = p
 }
@@ -299,6 +380,41 @@ func DefaultChannelSettings() map[Channel]bool {
 	}
 }
 
+func cloneChannelSettings(settings map[Channel]bool) map[Channel]bool {
+	if settings == nil {
+		return nil
+	}
+	clone := make(map[Channel]bool, len(settings))
+	for channel, enabled := range settings {
+		clone[channel] = enabled
+	}
+	return clone
+}
+
+func encodeChannelSettings(settings map[Channel]bool) map[string]bool {
+	if settings == nil {
+		return nil
+	}
+	encoded := make(map[string]bool, len(settings))
+	for channel, enabled := range settings {
+		encoded[string(channel)] = enabled
+	}
+	return encoded
+}
+
+func decodeChannelSettings(raw map[string]bool) map[Channel]bool {
+	settings := defaultChannelSettings()
+	if len(raw) == 0 {
+		return settings
+	}
+	for name, enabled := range raw {
+		if channel, ok := channelLookup[name]; ok {
+			settings[channel] = enabled
+		}
+	}
+	return settings
+}
+
 func (p *Player) channelEnabled(channel Channel) bool {
 	if p.Channels == nil {
 		return true
@@ -310,33 +426,54 @@ func (p *Player) channelEnabled(channel Channel) bool {
 	return enabled
 }
 
-func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool) (*Player, error) {
+func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool, profile PlayerProfile) (*Player, error) {
+	room := profile.Room
+	if room == "" {
+		room = StartRoom
+	}
+	channels := profile.Channels
+	if channels == nil {
+		channels = defaultChannelSettings()
+	}
+
 	w.mu.Lock()
-	defer w.mu.Unlock()
 	if existing, ok := w.players[name]; ok {
 		if existing.Alive {
+			w.mu.Unlock()
 			return nil, fmt.Errorf("%s is already connected", name)
 		}
 		existing.Session = session
 		existing.Output = make(chan string, 32)
-		existing.Room = "start"
+		existing.Room = room
 		existing.Alive = true
 		existing.IsAdmin = isAdmin
-		if existing.Channels == nil {
-			existing.Channels = defaultChannelSettings()
-		}
+		existing.Account = name
+		existing.Channels = cloneChannelSettings(channels)
+		persistChannels := cloneChannelSettings(existing.Channels)
+		account := existing.Account
+		currentRoom := existing.Room
+		w.mu.Unlock()
+		w.persistPlayerState(account, currentRoom, persistChannels)
 		return existing, nil
 	}
+
+	playerChannels := cloneChannelSettings(channels)
 	p := &Player{
 		Name:     name,
+		Account:  name,
 		Session:  session,
-		Room:     "start",
+		Room:     room,
 		Output:   make(chan string, 32),
 		Alive:    true,
 		IsAdmin:  isAdmin,
-		Channels: defaultChannelSettings(),
+		Channels: playerChannels,
 	}
 	w.players[name] = p
+	persistChannels := cloneChannelSettings(playerChannels)
+	account := p.Account
+	currentRoom := p.Room
+	w.mu.Unlock()
+	w.persistPlayerState(account, currentRoom, persistChannels)
 	return p, nil
 }
 
@@ -362,7 +499,7 @@ func (w *World) Reboot() ([]*Player, error) {
 	w.rooms = rooms
 	revived := make([]*Player, 0, len(w.players))
 	for _, p := range w.players {
-		p.Room = "start"
+		p.Room = StartRoom
 		revived = append(revived, p)
 	}
 	return revived, nil
@@ -470,14 +607,19 @@ func (w *World) AdjacentRooms(room RoomID) []RoomID {
 
 func (w *World) SetChannel(p *Player, channel Channel, enabled bool) {
 	w.mu.Lock()
-	defer w.mu.Unlock()
 	if _, ok := w.players[p.Name]; !ok {
+		w.mu.Unlock()
 		return
 	}
 	if p.Channels == nil {
 		p.Channels = defaultChannelSettings()
 	}
 	p.Channels[channel] = enabled
+	channels := cloneChannelSettings(p.Channels)
+	account := p.Account
+	room := p.Room
+	w.mu.Unlock()
+	w.persistPlayerState(account, room, channels)
 }
 
 func (w *World) ChannelStatuses(p *Player) map[Channel]bool {
@@ -488,6 +630,33 @@ func (w *World) ChannelStatuses(p *Player) map[Channel]bool {
 		statuses[channel] = p.channelEnabled(channel)
 	}
 	return statuses
+}
+
+func (w *World) persistPlayerState(account string, room RoomID, channels map[Channel]bool) {
+	if account == "" {
+		return
+	}
+	accounts := w.accounts
+	if accounts == nil {
+		return
+	}
+	profile := PlayerProfile{Room: room, Channels: channels}
+	if err := accounts.SaveProfile(account, profile); err != nil {
+		fmt.Printf("failed to persist state for %s: %v\n", account, err)
+	}
+}
+
+// PersistPlayer flushes the current state for the player to the backing store.
+func (w *World) PersistPlayer(p *Player) {
+	if p == nil {
+		return
+	}
+	w.mu.RLock()
+	account := p.Account
+	room := p.Room
+	channels := cloneChannelSettings(p.Channels)
+	w.mu.RUnlock()
+	w.persistPlayerState(account, room, channels)
 }
 
 func (w *World) RenamePlayer(p *Player, newName string) error {
@@ -520,15 +689,20 @@ func (w *World) ListPlayers(roomOnly bool, room RoomID) []string {
 
 func (w *World) Move(p *Player, dir string) (string, error) {
 	w.mu.Lock()
-	defer w.mu.Unlock()
 	r, ok := w.rooms[p.Room]
 	if !ok {
+		w.mu.Unlock()
 		return "", fmt.Errorf("unknown room: %s", p.Room)
 	}
 	next, ok := r.Exits[dir]
 	if !ok {
+		w.mu.Unlock()
 		return "", fmt.Errorf("you can't go that way")
 	}
 	p.Room = next
+	channels := cloneChannelSettings(p.Channels)
+	account := p.Account
+	w.mu.Unlock()
+	w.persistPlayerState(account, next, channels)
 	return string(next), nil
 }
