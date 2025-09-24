@@ -350,6 +350,7 @@ func TestRecallReturnsPlayerHome(t *testing.T) {
 func newTestPlayer(name string, room game.RoomID) *game.Player {
 	return &game.Player{
 		Name:     name,
+		Account:  name,
 		Room:     room,
 		Home:     room,
 		Output:   make(chan string, 32),

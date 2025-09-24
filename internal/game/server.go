@@ -134,6 +134,10 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager, dispatche
 		return
 	}
 
+	if err := accounts.RecordLogin(username, time.Now().UTC()); err != nil {
+		fmt.Printf("failed to record login for %s: %v\n", username, err)
+	}
+
 	go func() {
 		for out := range p.Output {
 			_ = session.WriteString(out)
