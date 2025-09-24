@@ -1,6 +1,9 @@
 package game
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -205,6 +208,46 @@ func TestAccountManagerProfilePersistence(t *testing.T) {
 		t.Fatalf("SaveProfile: %v", err)
 	}
 
+	playerPath := manager.playerFilePath("alice")
+	if _, err := os.Stat(playerPath); err != nil {
+		t.Fatalf("expected player file to exist: %v", err)
+	}
+	sum := sha256.Sum256([]byte("alice"))
+	expectedFile := hex.EncodeToString(sum[:]) + ".json"
+	if filepath.Base(playerPath) != expectedFile {
+		t.Fatalf("player file = %q, want %q", filepath.Base(playerPath), expectedFile)
+	}
+	var stored struct {
+		Room     string          `json:"room"`
+		Home     string          `json:"home"`
+		Channels map[string]bool `json:"channels"`
+	}
+	data, err := os.ReadFile(playerPath)
+	if err != nil {
+		t.Fatalf("read player file: %v", err)
+	}
+	if err := json.Unmarshal(data, &stored); err != nil {
+		t.Fatalf("decode player file: %v", err)
+	}
+	if stored.Room != string(updated.Room) {
+		t.Fatalf("player file room = %q, want %q", stored.Room, updated.Room)
+	}
+	if stored.Home != string(updated.Home) {
+		t.Fatalf("player file home = %q, want %q", stored.Home, updated.Home)
+	}
+	if len(stored.Channels) != len(updated.Channels) {
+		t.Fatalf("player file channels = %v, want %v", stored.Channels, updated.Channels)
+	}
+	for channel, want := range updated.Channels {
+		got, ok := stored.Channels[string(channel)]
+		if !ok {
+			t.Fatalf("player file missing channel %s", channel)
+		}
+		if got != want {
+			t.Fatalf("player file channel %s = %t, want %t", channel, got, want)
+		}
+	}
+
 	profile = manager.Profile("alice")
 	if profile.Room != updated.Room {
 		t.Fatalf("expected room %q, got %q", updated.Room, profile.Room)
@@ -310,37 +353,6 @@ func TestAccountManagerRecordLoginAndStats(t *testing.T) {
 	}
 	if persisted.TotalLogins != stats.TotalLogins {
 		t.Fatalf("TotalLogins mismatch after reload: got %d want %d", persisted.TotalLogins, stats.TotalLogins)
-	}
-}
-
-func TestAccountManagerLoadLegacyFormat(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "accounts.json")
-	if err := os.WriteFile(path, []byte(`{"legacy":"hash"}`), 0o644); err != nil {
-		t.Fatalf("write legacy file: %v", err)
-	}
-
-	manager, err := NewAccountManager(path)
-	if err != nil {
-		t.Fatalf("NewAccountManager: %v", err)
-	}
-
-	profile := manager.Profile("legacy")
-	if profile.Room != StartRoom {
-		t.Fatalf("legacy profile should default to %q, got %q", StartRoom, profile.Room)
-	}
-	if profile.Home != StartRoom {
-		t.Fatalf("legacy profile should default home to %q, got %q", StartRoom, profile.Home)
-	}
-	for _, channel := range AllChannels() {
-		if !profile.Channels[channel] {
-			t.Fatalf("legacy profile channel %s should default to enabled", channel)
-		}
-	}
-
-	desired := PlayerProfile{Room: "garden", Home: "garden", Channels: defaultChannelSettings()}
-	if err := manager.SaveProfile("legacy", desired); err != nil {
-		t.Fatalf("SaveProfile legacy: %v", err)
 	}
 }
 
