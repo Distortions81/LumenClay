@@ -153,6 +153,9 @@ func nearestCommandLocked(name string) *Command {
 			return cmd
 		}
 	}
+	if len(prefixMatches) > 1 {
+		return nil
+	}
 
 	var bestCmd *Command
 	bestDistance := 0

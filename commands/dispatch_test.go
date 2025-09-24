@@ -133,6 +133,35 @@ func TestDispatchAutocompletePrefix(t *testing.T) {
 	}
 }
 
+func TestDispatchAmbiguousPrefixDoesNotFallback(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"hall": {
+			ID:          "hall",
+			Title:       "Hall",
+			Description: "An empty hall.",
+			Exits:       map[string]game.RoomID{},
+		},
+	})
+	player := newTestPlayer("Reader", "hall")
+	world.AddPlayerForTest(player)
+
+	if done := Dispatch(world, player, "c"); done {
+		t.Fatalf("dispatch returned true, want false")
+	}
+
+	msgs := drainOutput(player.Output)
+	sawUnknown := false
+	for _, msg := range msgs {
+		if strings.Contains(msg, "Unknown command") {
+			sawUnknown = true
+			break
+		}
+	}
+	if !sawUnknown {
+		t.Fatalf("expected unknown command message, got %v", msgs)
+	}
+}
+
 func TestDispatchAutocompleteSimilarity(t *testing.T) {
 	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
 		"hall": {
