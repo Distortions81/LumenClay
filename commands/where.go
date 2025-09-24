@@ -11,6 +11,7 @@ var Where = Define(Definition{
 	Name:        "where",
 	Usage:       "where",
 	Description: "show player locations (builders/admins only)",
+	Group:       GroupBuilder,
 }, func(ctx *Context) bool {
 	if !ctx.Player.IsAdmin && !ctx.Player.IsBuilder {
 		ctx.Player.Output <- game.Ansi(game.Style("\r\nOnly builders or admins may use where.", game.AnsiYellow))

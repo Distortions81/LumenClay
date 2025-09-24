@@ -11,6 +11,7 @@ var Goto = Define(Definition{
 	Name:        "goto",
 	Usage:       "goto <room>",
 	Description: "teleport to a room (builders/admins only)",
+	Group:       GroupBuilder,
 }, func(ctx *Context) bool {
 	if !ctx.Player.IsAdmin && !ctx.Player.IsBuilder {
 		ctx.Player.Output <- game.Ansi(game.Style("\r\nOnly builders or admins may use goto.", game.AnsiYellow))

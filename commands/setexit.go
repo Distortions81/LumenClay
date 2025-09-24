@@ -10,6 +10,7 @@ var SetExit = Define(Definition{
 	Name:        "setexit",
 	Usage:       "setexit <direction> <room|none>",
 	Description: "connect the current room to another (builders/admins only)",
+	Group:       GroupBuilder,
 }, func(ctx *Context) bool {
 	if !ctx.Player.IsAdmin && !ctx.Player.IsBuilder {
 		ctx.Player.Output <- game.Ansi(game.Style("\r\nOnly builders or admins may use setexit.", game.AnsiYellow))

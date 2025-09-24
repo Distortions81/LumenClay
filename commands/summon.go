@@ -11,6 +11,7 @@ var Summon = Define(Definition{
 	Name:        "summon",
 	Usage:       "summon <player>",
 	Description: "summon a player to you (admin only)",
+	Group:       GroupAdmin,
 }, func(ctx *Context) bool {
 	if !ctx.Player.IsAdmin {
 		ctx.Player.Output <- game.Ansi(game.Style("\r\nOnly admins may summon players.", game.AnsiYellow))

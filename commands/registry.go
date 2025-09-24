@@ -10,12 +10,22 @@ import (
 )
 
 // Definition describes a single command's metadata.
+// CommandGroup identifies the help category associated with a command.
+type CommandGroup int
+
+const (
+	GroupGeneral CommandGroup = iota
+	GroupAdmin
+	GroupBuilder
+)
+
 type Definition struct {
 	Name        string
 	Aliases     []string
 	Shortcut    string
 	Usage       string
 	Description string
+	Group       CommandGroup
 }
 
 // Handler executes a command.

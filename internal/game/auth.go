@@ -51,7 +51,7 @@ func login(session *TelnetSession, accounts *AccountManager) (string, bool, erro
 				password = Trim(password)
 				if accounts.Authenticate(username, password) {
 					_ = session.WriteString(Ansi(Style("\r\nWelcome back, "+username+"!", AnsiGreen)))
-					return username, strings.EqualFold(username, "admin"), nil
+					return username, accounts.IsAdmin(username), nil
 				}
 				_ = session.WriteString(Ansi(Style("\r\nIncorrect password.", AnsiYellow)))
 			}
@@ -75,7 +75,7 @@ func login(session *TelnetSession, accounts *AccountManager) (string, bool, erro
 				break
 			}
 			_ = session.WriteString(Ansi(Style("\r\nAccount created. Welcome, "+username+"!", AnsiGreen)))
-			return username, strings.EqualFold(username, "admin"), nil
+			return username, accounts.IsAdmin(username), nil
 		}
 	}
 	_ = session.WriteString(Ansi("\r\nLogin cancelled.\r\n"))

@@ -13,13 +13,14 @@ func main() {
 	useTLS := flag.Bool("tls", false, "Enable TLS using the provided certificate and key files")
 	certFile := flag.String("cert", "data/tls/cert.pem", "Path to the TLS certificate file")
 	keyFile := flag.String("key", "data/tls/key.pem", "Path to the TLS private key file")
+	adminAccount := flag.String("admin", "admin", "Account granted administrator privileges")
 	flag.Parse()
 
 	var err error
 	if *useTLS {
-		err = game.ListenAndServeTLS(*addr, "data/accounts.json", game.DefaultAreasPath, *certFile, *keyFile, commands.Dispatch)
+		err = game.ListenAndServeTLS(*addr, "data/accounts.json", game.DefaultAreasPath, *certFile, *keyFile, *adminAccount, commands.Dispatch)
 	} else {
-		err = game.ListenAndServe(*addr, "data/accounts.json", game.DefaultAreasPath, commands.Dispatch)
+		err = game.ListenAndServe(*addr, "data/accounts.json", game.DefaultAreasPath, *adminAccount, commands.Dispatch)
 	}
 
 	if err != nil {

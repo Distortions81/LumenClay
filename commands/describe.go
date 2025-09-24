@@ -10,6 +10,7 @@ var Describe = Define(Definition{
 	Name:        "describe",
 	Usage:       "describe <text>",
 	Description: "update the current room description (builders/admins only)",
+	Group:       GroupBuilder,
 }, func(ctx *Context) bool {
 	if !ctx.Player.IsAdmin && !ctx.Player.IsBuilder {
 		ctx.Player.Output <- game.Ansi(game.Style("\r\nOnly builders or admins may use describe.", game.AnsiYellow))
