@@ -68,9 +68,10 @@ func ChannelFromString(name string) (Channel, bool) {
 
 type Player struct {
 	Name      string
-  	Account  string
+	Account   string
 	Session   *TelnetSession
 	Room      RoomID
+	Home      RoomID
 	Output    chan string
 	Alive     bool
 	IsAdmin   bool
@@ -82,6 +83,7 @@ type Player struct {
 // PlayerProfile captures persistent player state and preferences.
 type PlayerProfile struct {
 	Room     RoomID
+	Home     RoomID
 	Channels map[Channel]bool
 }
 
@@ -117,6 +119,7 @@ type World struct {
 type accountRecord struct {
 	Password string          `json:"password"`
 	Room     RoomID          `json:"room,omitempty"`
+	Home     RoomID          `json:"home,omitempty"`
 	Channels map[string]bool `json:"channels,omitempty"`
 }
 
@@ -226,6 +229,7 @@ func (a *AccountManager) Register(name, pass string) error {
 	a.accounts[name] = accountRecord{
 		Password: string(hashed),
 		Room:     StartRoom,
+		Home:     StartRoom,
 		Channels: encodeChannelSettings(defaultChannelSettings()),
 	}
 	if err := a.saveLocked(); err != nil {
@@ -252,6 +256,7 @@ func (a *AccountManager) Profile(name string) PlayerProfile {
 	defer a.mu.RUnlock()
 	profile := PlayerProfile{
 		Room:     StartRoom,
+		Home:     StartRoom,
 		Channels: defaultChannelSettings(),
 	}
 	record, ok := a.accounts[name]
@@ -260,6 +265,9 @@ func (a *AccountManager) Profile(name string) PlayerProfile {
 	}
 	if record.Room != "" {
 		profile.Room = record.Room
+	}
+	if record.Home != "" {
+		profile.Home = record.Home
 	}
 	if record.Channels != nil {
 		profile.Channels = decodeChannelSettings(record.Channels)
@@ -276,6 +284,7 @@ func (a *AccountManager) SaveProfile(name string, profile PlayerProfile) error {
 		return fmt.Errorf("account not found")
 	}
 	record.Room = profile.Room
+	record.Home = profile.Home
 	record.Channels = encodeChannelSettings(profile.Channels)
 	a.accounts[name] = record
 	return a.saveLocked()
@@ -317,6 +326,13 @@ func (w *World) AddPlayerForTest(p *Player) {
 	}
 	if p.Account == "" {
 		p.Account = p.Name
+	}
+	if p.Home == "" {
+		if p.Room != "" {
+			p.Home = p.Room
+		} else {
+			p.Home = StartRoom
+		}
 	}
 	w.players[p.Name] = p
 }
@@ -444,6 +460,10 @@ func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool, pro
 	if room == "" {
 		room = StartRoom
 	}
+	home := profile.Home
+	if home == "" {
+		home = StartRoom
+	}
 	channels := profile.Channels
 	if channels == nil {
 		channels = defaultChannelSettings()
@@ -458,6 +478,7 @@ func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool, pro
 		existing.Session = session
 		existing.Output = make(chan string, 32)
 		existing.Room = room
+		existing.Home = home
 		existing.Alive = true
 		existing.IsAdmin = isAdmin
 		existing.Account = name
@@ -465,29 +486,32 @@ func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool, pro
 		persistChannels := cloneChannelSettings(existing.Channels)
 		account := existing.Account
 		currentRoom := existing.Room
+		currentHome := existing.Home
 		w.mu.Unlock()
-		w.persistPlayerState(account, currentRoom, persistChannels)
+		w.persistPlayerState(account, currentRoom, currentHome, persistChannels)
 		return existing, nil
 	}
 
 	playerChannels := cloneChannelSettings(channels)
 	p := &Player{
 		Name:      name,
-    		Account:  name,
+		Account:   name,
 		Session:   session,
-		Room:      "start",
+		Room:      room,
+		Home:      home,
 		Output:    make(chan string, 32),
 		Alive:     true,
 		IsAdmin:   isAdmin,
 		IsBuilder: false,
-		Channels:  defaultChannelSettings(),
+		Channels:  cloneChannelSettings(playerChannels),
 	}
 	w.players[name] = p
 	persistChannels := cloneChannelSettings(playerChannels)
 	account := p.Account
 	currentRoom := p.Room
+	currentHome := p.Home
 	w.mu.Unlock()
-	w.persistPlayerState(account, currentRoom, persistChannels)
+	w.persistPlayerState(account, currentRoom, currentHome, persistChannels)
 	return p, nil
 }
 
@@ -632,8 +656,9 @@ func (w *World) SetChannel(p *Player, channel Channel, enabled bool) {
 	channels := cloneChannelSettings(p.Channels)
 	account := p.Account
 	room := p.Room
+	home := p.Home
 	w.mu.Unlock()
-	w.persistPlayerState(account, room, channels)
+	w.persistPlayerState(account, room, home, channels)
 }
 
 func (w *World) ChannelStatuses(p *Player) map[Channel]bool {
@@ -646,7 +671,7 @@ func (w *World) ChannelStatuses(p *Player) map[Channel]bool {
 	return statuses
 }
 
-func (w *World) persistPlayerState(account string, room RoomID, channels map[Channel]bool) {
+func (w *World) persistPlayerState(account string, room, home RoomID, channels map[Channel]bool) {
 	if account == "" {
 		return
 	}
@@ -654,7 +679,7 @@ func (w *World) persistPlayerState(account string, room RoomID, channels map[Cha
 	if accounts == nil {
 		return
 	}
-	profile := PlayerProfile{Room: room, Channels: channels}
+	profile := PlayerProfile{Room: room, Home: home, Channels: channels}
 	if err := accounts.SaveProfile(account, profile); err != nil {
 		fmt.Printf("failed to persist state for %s: %v\n", account, err)
 	}
@@ -668,9 +693,10 @@ func (w *World) PersistPlayer(p *Player) {
 	w.mu.RLock()
 	account := p.Account
 	room := p.Room
+	home := p.Home
 	channels := cloneChannelSettings(p.Channels)
 	w.mu.RUnlock()
-	w.persistPlayerState(account, room, channels)
+	w.persistPlayerState(account, room, home, channels)
 }
 
 func (w *World) RenamePlayer(p *Player, newName string) error {
@@ -716,8 +742,9 @@ func (w *World) Move(p *Player, dir string) (string, error) {
 	p.Room = next
 	channels := cloneChannelSettings(p.Channels)
 	account := p.Account
+	home := p.Home
 	w.mu.Unlock()
-	w.persistPlayerState(account, next, channels)
+	w.persistPlayerState(account, next, home, channels)
 	return string(next), nil
 }
 
@@ -763,15 +790,42 @@ func (w *World) SetBuilder(name string, enabled bool) (*Player, error) {
 // MoveToRoom relocates the provided player to the specified room.
 func (w *World) MoveToRoom(p *Player, room RoomID) error {
 	w.mu.Lock()
-	defer w.mu.Unlock()
 	if _, ok := w.rooms[room]; !ok {
+		w.mu.Unlock()
 		return fmt.Errorf("unknown room: %s", room)
 	}
 	stored, ok := w.players[p.Name]
 	if !ok || stored != p || !p.Alive {
+		w.mu.Unlock()
 		return fmt.Errorf("%s is not online", p.Name)
 	}
 	p.Room = room
+	account := p.Account
+	home := p.Home
+	channels := cloneChannelSettings(p.Channels)
+	w.mu.Unlock()
+	w.persistPlayerState(account, room, home, channels)
+	return nil
+}
+
+// SetHome updates the player's recall location and persists it.
+func (w *World) SetHome(p *Player, room RoomID) error {
+	w.mu.Lock()
+	if _, ok := w.rooms[room]; !ok {
+		w.mu.Unlock()
+		return fmt.Errorf("unknown room: %s", room)
+	}
+	stored, ok := w.players[p.Name]
+	if !ok || stored != p || !p.Alive {
+		w.mu.Unlock()
+		return fmt.Errorf("%s is not online", p.Name)
+	}
+	p.Home = room
+	account := p.Account
+	channels := cloneChannelSettings(p.Channels)
+	currentRoom := p.Room
+	w.mu.Unlock()
+	w.persistPlayerState(account, currentRoom, room, channels)
 	return nil
 }
 

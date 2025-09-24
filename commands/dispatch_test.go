@@ -206,10 +206,123 @@ func TestDispatchChannelToggleDisablesSay(t *testing.T) {
 	}
 }
 
+func TestSetHomeUpdatesRecallPoint(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"start": {
+			ID:          "start",
+			Title:       "Starting Room",
+			Description: "The central hub.",
+			Exits:       map[string]game.RoomID{"east": "hall"},
+		},
+		"hall": {
+			ID:          "hall",
+			Title:       "Hall",
+			Description: "A quiet hallway.",
+			Exits:       map[string]game.RoomID{"west": "start"},
+		},
+	})
+	traveler := newTestPlayer("Traveler", "hall")
+	traveler.Home = "start"
+	world.AddPlayerForTest(traveler)
+
+	if done := Dispatch(world, traveler, "sethome"); done {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	if traveler.Home != "hall" {
+		t.Fatalf("expected home to be 'hall', got %q", traveler.Home)
+	}
+
+	msgs := drainOutput(traveler.Output)
+	sawAttune := false
+	for _, msg := range msgs {
+		if strings.Contains(msg, "attune yourself") {
+			sawAttune = true
+			break
+		}
+	}
+	if !sawAttune {
+		t.Fatalf("expected attunement message, got %v", msgs)
+	}
+}
+
+func TestRecallReturnsPlayerHome(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"start": {
+			ID:          "start",
+			Title:       "Starting Room",
+			Description: "The central hub.",
+			Exits:       map[string]game.RoomID{"east": "hall"},
+		},
+		"hall": {
+			ID:          "hall",
+			Title:       "Hall",
+			Description: "A quiet hallway.",
+			Exits:       map[string]game.RoomID{"west": "start"},
+		},
+	})
+	traveler := newTestPlayer("Traveler", "hall")
+	traveler.Home = "start"
+	companion := newTestPlayer("Companion", "hall")
+	watcher := newTestPlayer("Watcher", "start")
+	world.AddPlayerForTest(traveler)
+	world.AddPlayerForTest(companion)
+	world.AddPlayerForTest(watcher)
+
+	if done := Dispatch(world, traveler, "recall"); done {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	if traveler.Room != "start" {
+		t.Fatalf("expected traveler to be in start, got %q", traveler.Room)
+	}
+
+	travelerMsgs := drainOutput(traveler.Output)
+	sawCall := false
+	sawPrompt := false
+	for _, msg := range travelerMsgs {
+		if strings.Contains(msg, "answer the call of home") {
+			sawCall = true
+		}
+		if msg == ">" {
+			sawPrompt = true
+		}
+	}
+	if !sawCall {
+		t.Fatalf("expected recall confirmation, got %v", travelerMsgs)
+	}
+	if !sawPrompt {
+		t.Fatalf("expected prompt after recall, got %v", travelerMsgs)
+	}
+
+	companionMsgs := drainOutput(companion.Output)
+	sawDeparture := false
+	for _, msg := range companionMsgs {
+		if strings.Contains(msg, "flash of light and vanishes") {
+			sawDeparture = true
+			break
+		}
+	}
+	if !sawDeparture {
+		t.Fatalf("companion did not see departure: %v", companionMsgs)
+	}
+
+	watcherMsgs := drainOutput(watcher.Output)
+	sawArrival := false
+	for _, msg := range watcherMsgs {
+		if strings.Contains(msg, "arrives in a flash of light") {
+			sawArrival = true
+			break
+		}
+	}
+	if !sawArrival {
+		t.Fatalf("watcher did not see arrival: %v", watcherMsgs)
+	}
+}
+
 func newTestPlayer(name string, room game.RoomID) *game.Player {
 	return &game.Player{
 		Name:     name,
 		Room:     room,
+		Home:     room,
 		Output:   make(chan string, 32),
 		Alive:    true,
 		Channels: game.DefaultChannelSettings(),
