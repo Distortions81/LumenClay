@@ -11,7 +11,17 @@
         "n": "parade",
         "s": "harbor",
         "w": "clocktower"
-      }
+      },
+      "items": [
+        {
+          "name": "Sealed Trade Ledger",
+          "description": "Wax sigils glow faintly, promising fortunes to whoever breaks the seal."
+        },
+        {
+          "name": "String of Chimes",
+          "description": "Each bell rings a different currency when shaken."
+        }
+      ]
     },
     {
       "id": "clocktower",

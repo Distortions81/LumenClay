@@ -27,6 +27,13 @@ func EnterRoom(world *World, p *Player, via string) {
 		colored := HighlightNames(seen)
 		p.Output <- Ansi(fmt.Sprintf("\r\nYou see: %s", strings.Join(colored, ", ")))
 	}
+	if items := world.RoomItems(p.Room); len(items) > 0 {
+		names := make([]string, len(items))
+		for i, item := range items {
+			names[i] = HighlightItemName(item.Name)
+		}
+		p.Output <- Ansi(fmt.Sprintf("\r\nOn the ground: %s", strings.Join(names, ", ")))
+	}
 	if len(r.NPCs) > 0 {
 		for _, npc := range r.NPCs {
 			if strings.TrimSpace(npc.AutoGreet) == "" {

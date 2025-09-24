@@ -85,3 +85,36 @@ func TestEnterRoomTriggersNPCGreeting(t *testing.T) {
 		t.Fatalf("NPC greeting missing text: %q", greet)
 	}
 }
+
+func TestEnterRoomListsItems(t *testing.T) {
+	world := &World{
+		rooms: map[RoomID]*Room{
+			"start": {
+				ID:          "start",
+				Title:       "Item Room",
+				Description: "A room stocked with treasures.",
+				Exits:       map[string]RoomID{},
+				Items: []Item{
+					{Name: "Lantern"},
+					{Name: "Rope"},
+				},
+			},
+		},
+		players: make(map[string]*Player),
+	}
+	player := &Player{
+		Name:   "Hero",
+		Room:   "start",
+		Output: make(chan string, 4),
+		Alive:  true,
+	}
+	world.players[player.Name] = player
+
+	EnterRoom(world, player, "")
+
+	<-player.Output // room description
+	items := <-player.Output
+	if !strings.Contains(items, "Lantern") || !strings.Contains(items, "Rope") {
+		t.Fatalf("expected item list to mention Lantern and Rope, got %q", items)
+	}
+}

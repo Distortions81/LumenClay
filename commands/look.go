@@ -28,5 +28,12 @@ var Look = Define(Definition{
 		colored := game.HighlightNames(seen)
 		ctx.Player.Output <- game.Ansi(fmt.Sprintf("\r\nYou see: %s", strings.Join(colored, ", ")))
 	}
+	if items := ctx.World.RoomItems(ctx.Player.Room); len(items) > 0 {
+		names := make([]string, len(items))
+		for i, item := range items {
+			names[i] = game.HighlightItemName(item.Name)
+		}
+		ctx.Player.Output <- game.Ansi(fmt.Sprintf("\r\nOn the ground: %s", strings.Join(names, ", ")))
+	}
 	return false
 })

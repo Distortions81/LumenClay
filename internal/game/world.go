@@ -28,11 +28,18 @@ type Room struct {
 	Description string            `json:"description"`
 	Exits       map[string]RoomID `json:"exits"`
 	NPCs        []NPC             `json:"npcs"`
+	Items       []Item            `json:"items"`
 }
 
 type NPC struct {
 	Name      string `json:"name"`
 	AutoGreet string `json:"auto_greet"`
+}
+
+// Item represents an object that can exist in rooms or player inventories.
+type Item struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
 }
 
 // StartRoom is the default entry point for new players.
@@ -80,6 +87,7 @@ type Player struct {
 	IsAdmin   bool
 	IsBuilder bool
 	Channels  map[Channel]bool
+	Inventory []Item
 	history   []time.Time
 }
 
@@ -93,6 +101,13 @@ type PlayerProfile struct {
 const (
 	commandLimit  = 5
 	commandWindow = time.Second
+)
+
+var (
+	// ErrItemNotFound indicates a requested item could not be located.
+	ErrItemNotFound = errors.New("item not found")
+	// ErrItemNotCarried indicates the player is not carrying the requested item.
+	ErrItemNotCarried = errors.New("item not carried")
 )
 
 func (p *Player) allowCommand(now time.Time) bool {
@@ -495,6 +510,11 @@ func (w *World) persistBuilderRoomsLocked() error {
 			copy(npcs, room.NPCs)
 			copyRoom.NPCs = npcs
 		}
+		if room.Items != nil {
+			items := make([]Item, len(room.Items))
+			copy(items, room.Items)
+			copyRoom.Items = items
+		}
 		rooms = append(rooms, copyRoom)
 	}
 	sort.Slice(rooms, func(i, j int) bool {
@@ -877,6 +897,100 @@ func (w *World) ListPlayers(roomOnly bool, room RoomID) []string {
 		names = append(names, p.Name)
 	}
 	return names
+}
+
+func normalizeItemName(name string) string {
+	return strings.ToLower(strings.TrimSpace(name))
+}
+
+func findItemIndex(items []Item, target string) int {
+	if target == "" {
+		return -1
+	}
+	for i, item := range items {
+		if normalizeItemName(item.Name) == target {
+			return i
+		}
+	}
+	return -1
+}
+
+// RoomItems returns a copy of the items present in the specified room.
+func (w *World) RoomItems(room RoomID) []Item {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	r, ok := w.rooms[room]
+	if !ok || len(r.Items) == 0 {
+		return nil
+	}
+	items := make([]Item, len(r.Items))
+	copy(items, r.Items)
+	return items
+}
+
+// PlayerInventory returns a copy of the player's carried items.
+func (w *World) PlayerInventory(p *Player) []Item {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	stored, ok := w.players[p.Name]
+	if !ok || stored != p || len(stored.Inventory) == 0 {
+		return nil
+	}
+	inv := make([]Item, len(stored.Inventory))
+	copy(inv, stored.Inventory)
+	return inv
+}
+
+// TakeItem moves an item from the player's current room into their inventory.
+func (w *World) TakeItem(p *Player, name string) (*Item, error) {
+	target := normalizeItemName(name)
+	if target == "" {
+		return nil, fmt.Errorf("item name must not be empty")
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	stored, ok := w.players[p.Name]
+	if !ok || stored != p || !p.Alive {
+		return nil, fmt.Errorf("%s is not online", p.Name)
+	}
+	room, ok := w.rooms[p.Room]
+	if !ok {
+		return nil, fmt.Errorf("unknown room: %s", p.Room)
+	}
+	idx := findItemIndex(room.Items, target)
+	if idx == -1 {
+		return nil, ErrItemNotFound
+	}
+	item := room.Items[idx]
+	room.Items = append(room.Items[:idx], room.Items[idx+1:]...)
+	p.Inventory = append(p.Inventory, item)
+	return &item, nil
+}
+
+// DropItem places an item from the player's inventory into their current room.
+func (w *World) DropItem(p *Player, name string) (*Item, error) {
+	target := normalizeItemName(name)
+	if target == "" {
+		return nil, fmt.Errorf("item name must not be empty")
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	stored, ok := w.players[p.Name]
+	if !ok || stored != p || !p.Alive {
+		return nil, fmt.Errorf("%s is not online", p.Name)
+	}
+	room, ok := w.rooms[p.Room]
+	if !ok {
+		return nil, fmt.Errorf("unknown room: %s", p.Room)
+	}
+	idx := findItemIndex(p.Inventory, target)
+	if idx == -1 {
+		return nil, ErrItemNotCarried
+	}
+	item := p.Inventory[idx]
+	p.Inventory = append(p.Inventory[:idx], p.Inventory[idx+1:]...)
+	room.Items = append(room.Items, item)
+	return &item, nil
 }
 
 func (w *World) Move(p *Player, dir string) (string, error) {
