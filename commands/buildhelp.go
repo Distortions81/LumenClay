@@ -1,6 +1,6 @@
 package commands
 
-import "aiMud/internal/game"
+import "LumenClay/internal/game"
 
 var BuildHelp = Define(Definition{
 	Name:        "buildhelp",
