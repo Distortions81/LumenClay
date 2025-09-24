@@ -121,7 +121,8 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager, dispatche
 		return
 	}
 
-	p, err := world.addPlayer(username, session, isAdmin)
+	profile := accounts.Profile(username)
+	p, err := world.addPlayer(username, session, isAdmin, profile)
 	if err != nil {
 		_ = session.WriteString(Ansi(Style("\r\n"+err.Error()+"\r\n", AnsiYellow)))
 		return
@@ -164,6 +165,7 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager, dispatche
 
 	p.Alive = false
 	world.BroadcastToRoom(p.Room, Ansi(fmt.Sprintf("\r\n%s leaves.", HighlightName(p.Name))), p)
+	world.PersistPlayer(p)
 	world.removePlayer(p.Name)
 }
 
@@ -195,14 +197,15 @@ func listenAndServe(addr, accountsPath, areasPath string, dispatcher Dispatcher,
 		areasPath = DefaultAreasPath
 	}
 
-	world, err := NewWorld(areasPath)
-	if err != nil {
-		return err
-	}
 	accounts, err := NewAccountManager(accountsPath)
 	if err != nil {
 		return err
 	}
+	world, err := NewWorld(areasPath)
+	if err != nil {
+		return err
+	}
+	world.AttachAccountManager(accounts)
 
 	var ln net.Listener
 	if cfg.enableTLS {

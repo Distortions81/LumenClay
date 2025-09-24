@@ -1,6 +1,8 @@
 package game
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -35,5 +37,136 @@ func TestPlayerAllowCommandThrottles(t *testing.T) {
 	}
 	if !p.allowCommand(base.Add(commandWindow + time.Millisecond)) {
 		t.Fatalf("command should be allowed after window")
+	}
+}
+
+func TestAccountManagerProfilePersistence(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "accounts.json")
+
+	manager, err := NewAccountManager(path)
+	if err != nil {
+		t.Fatalf("NewAccountManager: %v", err)
+	}
+	if err := manager.Register("alice", "password123"); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	profile := manager.Profile("alice")
+	if profile.Room != StartRoom {
+		t.Fatalf("expected default room %q, got %q", StartRoom, profile.Room)
+	}
+	for _, channel := range AllChannels() {
+		if !profile.Channels[channel] {
+			t.Fatalf("expected channel %s to default to enabled", channel)
+		}
+	}
+
+	updated := PlayerProfile{
+		Room: "lobby",
+		Channels: map[Channel]bool{
+			ChannelSay:     true,
+			ChannelWhisper: false,
+			ChannelYell:    true,
+			ChannelOOC:     false,
+		},
+	}
+	if err := manager.SaveProfile("alice", updated); err != nil {
+		t.Fatalf("SaveProfile: %v", err)
+	}
+
+	profile = manager.Profile("alice")
+	if profile.Room != updated.Room {
+		t.Fatalf("expected room %q, got %q", updated.Room, profile.Room)
+	}
+	for channel, want := range updated.Channels {
+		if got := profile.Channels[channel]; got != want {
+			t.Fatalf("channel %s: got %t, want %t", channel, got, want)
+		}
+	}
+
+	reloaded, err := NewAccountManager(path)
+	if err != nil {
+		t.Fatalf("reload manager: %v", err)
+	}
+	profile = reloaded.Profile("alice")
+	if profile.Room != updated.Room {
+		t.Fatalf("expected persisted room %q, got %q", updated.Room, profile.Room)
+	}
+	for channel, want := range updated.Channels {
+		if got := profile.Channels[channel]; got != want {
+			t.Fatalf("persisted channel %s: got %t, want %t", channel, got, want)
+		}
+	}
+}
+
+func TestAccountManagerLoadLegacyFormat(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "accounts.json")
+	if err := os.WriteFile(path, []byte(`{"legacy":"hash"}`), 0o644); err != nil {
+		t.Fatalf("write legacy file: %v", err)
+	}
+
+	manager, err := NewAccountManager(path)
+	if err != nil {
+		t.Fatalf("NewAccountManager: %v", err)
+	}
+
+	profile := manager.Profile("legacy")
+	if profile.Room != StartRoom {
+		t.Fatalf("legacy profile should default to %q, got %q", StartRoom, profile.Room)
+	}
+	for _, channel := range AllChannels() {
+		if !profile.Channels[channel] {
+			t.Fatalf("legacy profile channel %s should default to enabled", channel)
+		}
+	}
+
+	desired := PlayerProfile{Room: "garden", Channels: defaultChannelSettings()}
+	if err := manager.SaveProfile("legacy", desired); err != nil {
+		t.Fatalf("SaveProfile legacy: %v", err)
+	}
+}
+
+func TestWorldPersistsState(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "accounts.json")
+
+	manager, err := NewAccountManager(path)
+	if err != nil {
+		t.Fatalf("NewAccountManager: %v", err)
+	}
+	if err := manager.Register("traveler", "password123"); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	rooms := map[RoomID]*Room{
+		StartRoom: {ID: StartRoom, Exits: map[string]RoomID{"east": "hall"}},
+		"hall":    {ID: "hall", Exits: map[string]RoomID{}},
+	}
+	world := NewWorldWithRooms(rooms)
+	world.AttachAccountManager(manager)
+
+	profile := manager.Profile("traveler")
+	player, err := world.addPlayer("traveler", nil, false, profile)
+	if err != nil {
+		t.Fatalf("addPlayer: %v", err)
+	}
+
+	if _, err := world.Move(player, "east"); err != nil {
+		t.Fatalf("Move: %v", err)
+	}
+	saved := manager.Profile("traveler")
+	if saved.Room != "hall" {
+		t.Fatalf("expected room 'hall', got %q", saved.Room)
+	}
+
+	world.SetChannel(player, ChannelWhisper, false)
+	saved = manager.Profile("traveler")
+	if saved.Channels[ChannelWhisper] {
+		t.Fatalf("expected whisper channel to be disabled")
+	}
+	if !saved.Channels[ChannelSay] {
+		t.Fatalf("say channel should remain enabled")
 	}
 }
