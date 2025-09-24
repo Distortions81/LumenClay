@@ -17,6 +17,9 @@ import (
 // DefaultAreasPath is the on-disk location of bundled areas.
 const DefaultAreasPath = "data/areas"
 
+// builderAreaFile stores rooms created or modified in-game.
+const builderAreaFile = "builder.json"
+
 type RoomID string
 
 type Room struct {
@@ -109,11 +112,13 @@ func (p *Player) allowCommand(now time.Time) bool {
 }
 
 type World struct {
-	mu        sync.RWMutex
-	rooms     map[RoomID]*Room
-	players   map[string]*Player
-	areasPath string
-	accounts  *AccountManager
+	mu          sync.RWMutex
+	rooms       map[RoomID]*Room
+	players     map[string]*Player
+	areasPath   string
+	accounts    *AccountManager
+	roomSources map[RoomID]string
+	builderPath string
 }
 
 type accountRecord struct {
@@ -291,22 +296,25 @@ func (a *AccountManager) SaveProfile(name string, profile PlayerProfile) error {
 }
 
 func NewWorld(areasPath string) (*World, error) {
-	rooms, err := loadRooms(areasPath)
+	rooms, sources, err := loadRooms(areasPath)
 	if err != nil {
 		return nil, err
 	}
 	return &World{
-		rooms:     rooms,
-		players:   make(map[string]*Player),
-		areasPath: areasPath,
+		rooms:       rooms,
+		players:     make(map[string]*Player),
+		areasPath:   areasPath,
+		roomSources: sources,
+		builderPath: filepath.Join(areasPath, builderAreaFile),
 	}, nil
 }
 
 // NewWorldWithRooms constructs a world populated with the provided rooms.
 func NewWorldWithRooms(rooms map[RoomID]*Room) *World {
 	return &World{
-		rooms:   rooms,
-		players: make(map[string]*Player),
+		rooms:       rooms,
+		players:     make(map[string]*Player),
+		roomSources: make(map[RoomID]string, len(rooms)),
 	}
 }
 
@@ -342,10 +350,10 @@ type areaFile struct {
 	Rooms []Room `json:"rooms"`
 }
 
-func loadRooms(areasPath string) (map[RoomID]*Room, error) {
+func loadRooms(areasPath string) (map[RoomID]*Room, map[RoomID]string, error) {
 	entries, err := os.ReadDir(areasPath)
 	if err != nil {
-		return nil, fmt.Errorf("read areas: %w", err)
+		return nil, nil, fmt.Errorf("read areas: %w", err)
 	}
 	names := make([]string, 0, len(entries))
 	for _, entry := range entries {
@@ -360,34 +368,174 @@ func loadRooms(areasPath string) (map[RoomID]*Room, error) {
 	sort.Strings(names)
 
 	rooms := make(map[RoomID]*Room)
+	sources := make(map[RoomID]string)
+	var builderFileName string
 	for _, name := range names {
-		data, err := os.ReadFile(filepath.Join(areasPath, name))
-		if err != nil {
-			return nil, fmt.Errorf("read area %s: %w", name, err)
+		if name == builderAreaFile {
+			builderFileName = name
+			continue
 		}
-		var file areaFile
-		if err := json.Unmarshal(data, &file); err != nil {
-			return nil, fmt.Errorf("decode area %s: %w", name, err)
+		if err := loadAreaFile(areasPath, name, rooms, sources, false); err != nil {
+			return nil, nil, err
 		}
-		for i := range file.Rooms {
-			room := file.Rooms[i]
-			if room.ID == "" {
-				return nil, fmt.Errorf("area %s contains a room without an id", name)
-			}
-			if room.Exits == nil {
-				room.Exits = make(map[string]RoomID)
-			}
-			if _, exists := rooms[room.ID]; exists {
-				return nil, fmt.Errorf("duplicate room id %s", room.ID)
-			}
-			r := room
-			rooms[room.ID] = &r
+	}
+	if builderFileName != "" {
+		if err := loadAreaFile(areasPath, builderFileName, rooms, sources, true); err != nil {
+			return nil, nil, err
 		}
 	}
 	if len(rooms) == 0 {
-		return nil, fmt.Errorf("no rooms loaded")
+		return nil, nil, fmt.Errorf("no rooms loaded")
 	}
-	return rooms, nil
+	return rooms, sources, nil
+}
+
+func loadAreaFile(areasPath, name string, rooms map[RoomID]*Room, sources map[RoomID]string, allowOverride bool) error {
+	data, err := os.ReadFile(filepath.Join(areasPath, name))
+	if err != nil {
+		return fmt.Errorf("read area %s: %w", name, err)
+	}
+	var file areaFile
+	if err := json.Unmarshal(data, &file); err != nil {
+		return fmt.Errorf("decode area %s: %w", name, err)
+	}
+	for i := range file.Rooms {
+		room := file.Rooms[i]
+		if room.ID == "" {
+			return fmt.Errorf("area %s contains a room without an id", name)
+		}
+		if room.Exits == nil {
+			room.Exits = make(map[string]RoomID)
+		}
+		if _, exists := rooms[room.ID]; exists && !allowOverride {
+			return fmt.Errorf("duplicate room id %s", room.ID)
+		}
+		r := room
+		rooms[room.ID] = &r
+		sources[room.ID] = name
+	}
+	return nil
+}
+
+func (w *World) markRoomAsBuilderLocked(id RoomID) (string, bool) {
+	if w.roomSources == nil {
+		w.roomSources = make(map[RoomID]string)
+	}
+	prev, existed := w.roomSources[id]
+	w.roomSources[id] = builderAreaFile
+	return prev, existed
+}
+
+func (w *World) setExitLocked(roomID RoomID, direction string, target *RoomID) (func(), error) {
+	room, ok := w.rooms[roomID]
+	if !ok {
+		return nil, fmt.Errorf("unknown room: %s", roomID)
+	}
+	if target != nil {
+		if _, ok := w.rooms[*target]; !ok {
+			return nil, fmt.Errorf("unknown room: %s", *target)
+		}
+	}
+	var prevTarget RoomID
+	hadExit := false
+	if room.Exits != nil {
+		prevTarget, hadExit = room.Exits[direction]
+	}
+	if target == nil {
+		if room.Exits != nil {
+			delete(room.Exits, direction)
+		}
+	} else {
+		if room.Exits == nil {
+			room.Exits = make(map[string]RoomID)
+		}
+		room.Exits[direction] = *target
+	}
+	prevSource, hadSource := w.markRoomAsBuilderLocked(roomID)
+	undo := func() {
+		if hadExit {
+			if room.Exits == nil {
+				room.Exits = make(map[string]RoomID)
+			}
+			room.Exits[direction] = prevTarget
+		} else if room.Exits != nil {
+			delete(room.Exits, direction)
+		}
+		if hadSource {
+			w.roomSources[roomID] = prevSource
+		} else {
+			delete(w.roomSources, roomID)
+		}
+	}
+	return undo, nil
+}
+
+func (w *World) persistBuilderRoomsLocked() error {
+	if w.builderPath == "" {
+		return nil
+	}
+	rooms := make([]Room, 0, len(w.roomSources))
+	for id, source := range w.roomSources {
+		if source != builderAreaFile {
+			continue
+		}
+		room, ok := w.rooms[id]
+		if !ok {
+			continue
+		}
+		copyRoom := *room
+		copyRoom.ID = id
+		if room.Exits == nil {
+			copyRoom.Exits = make(map[string]RoomID)
+		} else {
+			copyRoom.Exits = cloneExits(room.Exits)
+		}
+		if room.NPCs != nil {
+			npcs := make([]NPC, len(room.NPCs))
+			copy(npcs, room.NPCs)
+			copyRoom.NPCs = npcs
+		}
+		rooms = append(rooms, copyRoom)
+	}
+	sort.Slice(rooms, func(i, j int) bool {
+		return rooms[i].ID < rooms[j].ID
+	})
+	file := areaFile{Name: "Builder Rooms", Rooms: rooms}
+	dir := filepath.Dir(w.builderPath)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create builder area directory: %w", err)
+	}
+	tmp, err := os.CreateTemp(dir, "builder-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create temp builder area file: %w", err)
+	}
+	enc := json.NewEncoder(tmp)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(file); err != nil {
+		tmp.Close()
+		os.Remove(tmp.Name())
+		return fmt.Errorf("write builder area: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmp.Name())
+		return fmt.Errorf("close builder area: %w", err)
+	}
+	if err := os.Rename(tmp.Name(), w.builderPath); err != nil {
+		os.Remove(tmp.Name())
+		return fmt.Errorf("replace builder area: %w", err)
+	}
+	return nil
+}
+
+func cloneExits(exits map[string]RoomID) map[string]RoomID {
+	if exits == nil {
+		return nil
+	}
+	clone := make(map[string]RoomID, len(exits))
+	for dir, dest := range exits {
+		clone[dir] = dest
+	}
+	return clone
 }
 
 func defaultChannelSettings() map[Channel]bool {
@@ -530,11 +678,15 @@ func (w *World) Reboot() ([]*Player, error) {
 	if w.areasPath == "" {
 		return nil, fmt.Errorf("world does not have an areas path configured")
 	}
-	rooms, err := loadRooms(w.areasPath)
+	rooms, sources, err := loadRooms(w.areasPath)
 	if err != nil {
 		return nil, err
 	}
 	w.rooms = rooms
+	w.roomSources = sources
+	if w.areasPath != "" {
+		w.builderPath = filepath.Join(w.areasPath, builderAreaFile)
+	}
 	revived := make([]*Player, 0, len(w.players))
 	for _, p := range w.players {
 		p.Room = StartRoom
@@ -826,6 +978,150 @@ func (w *World) SetHome(p *Player, room RoomID) error {
 	currentRoom := p.Room
 	w.mu.Unlock()
 	w.persistPlayerState(account, currentRoom, room, channels)
+	return nil
+}
+
+// CreateRoom adds a new room to the world and persists it to the builder area.
+func (w *World) CreateRoom(id RoomID, title string) (*Room, error) {
+	trimmed := strings.TrimSpace(string(id))
+	if trimmed == "" {
+		return nil, fmt.Errorf("room id must not be empty")
+	}
+	normalizedID := RoomID(trimmed)
+	w.mu.Lock()
+	if _, exists := w.rooms[normalizedID]; exists {
+		w.mu.Unlock()
+		return nil, fmt.Errorf("room %s already exists", normalizedID)
+	}
+	if title = strings.TrimSpace(title); title == "" {
+		title = trimmed
+	}
+	room := &Room{
+		ID:          normalizedID,
+		Title:       title,
+		Description: "",
+		Exits:       make(map[string]RoomID),
+	}
+	if w.rooms == nil {
+		w.rooms = make(map[RoomID]*Room)
+	}
+	w.rooms[normalizedID] = room
+	prevSource, hadSource := w.markRoomAsBuilderLocked(normalizedID)
+	if err := w.persistBuilderRoomsLocked(); err != nil {
+		if hadSource {
+			w.roomSources[normalizedID] = prevSource
+		} else {
+			delete(w.roomSources, normalizedID)
+		}
+		delete(w.rooms, normalizedID)
+		w.mu.Unlock()
+		return nil, err
+	}
+	w.mu.Unlock()
+	return room, nil
+}
+
+// UpdateRoomDescription modifies a room's description and persists the change.
+func (w *World) UpdateRoomDescription(id RoomID, description string) (*Room, error) {
+	w.mu.Lock()
+	room, ok := w.rooms[id]
+	if !ok {
+		w.mu.Unlock()
+		return nil, fmt.Errorf("unknown room: %s", id)
+	}
+	prevDesc := room.Description
+	prevSource, hadSource := w.markRoomAsBuilderLocked(id)
+	room.Description = description
+	if err := w.persistBuilderRoomsLocked(); err != nil {
+		room.Description = prevDesc
+		if hadSource {
+			w.roomSources[id] = prevSource
+		} else {
+			delete(w.roomSources, id)
+		}
+		w.mu.Unlock()
+		return nil, err
+	}
+	w.mu.Unlock()
+	return room, nil
+}
+
+// SetExit updates (or creates) an exit from one room to another.
+func (w *World) SetExit(from RoomID, direction string, to RoomID) error {
+	dir := strings.ToLower(strings.TrimSpace(direction))
+	if dir == "" {
+		return fmt.Errorf("direction must not be empty")
+	}
+	target := to
+	w.mu.Lock()
+	undo, err := w.setExitLocked(from, dir, &target)
+	if err != nil {
+		w.mu.Unlock()
+		return err
+	}
+	if err := w.persistBuilderRoomsLocked(); err != nil {
+		undo()
+		w.mu.Unlock()
+		return err
+	}
+	w.mu.Unlock()
+	return nil
+}
+
+// ClearExit removes an exit from the specified room.
+func (w *World) ClearExit(from RoomID, direction string) error {
+	dir := strings.ToLower(strings.TrimSpace(direction))
+	if dir == "" {
+		return fmt.Errorf("direction must not be empty")
+	}
+	w.mu.Lock()
+	undo, err := w.setExitLocked(from, dir, nil)
+	if err != nil {
+		w.mu.Unlock()
+		return err
+	}
+	if err := w.persistBuilderRoomsLocked(); err != nil {
+		undo()
+		w.mu.Unlock()
+		return err
+	}
+	w.mu.Unlock()
+	return nil
+}
+
+// LinkRooms wires exits between two rooms, optionally adding a return path.
+func (w *World) LinkRooms(from RoomID, direction string, to RoomID, back string) error {
+	dir := strings.ToLower(strings.TrimSpace(direction))
+	if dir == "" {
+		return fmt.Errorf("direction must not be empty")
+	}
+	reverse := strings.ToLower(strings.TrimSpace(back))
+	w.mu.Lock()
+	undoForward, err := w.setExitLocked(from, dir, &to)
+	if err != nil {
+		w.mu.Unlock()
+		return err
+	}
+	undos := []func(){undoForward}
+	if reverse != "" {
+		undoBack, err := w.setExitLocked(to, reverse, &from)
+		if err != nil {
+			for _, undo := range undos {
+				undo()
+			}
+			w.mu.Unlock()
+			return err
+		}
+		undos = append(undos, undoBack)
+	}
+	if err := w.persistBuilderRoomsLocked(); err != nil {
+		for _, undo := range undos {
+			undo()
+		}
+		w.mu.Unlock()
+		return err
+	}
+	w.mu.Unlock()
 	return nil
 }
 
