@@ -1,4 +1,4 @@
-package main
+package game
 
 import (
 	"embed"
@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 
 	"golang.org/x/crypto/bcrypt"
@@ -41,6 +42,19 @@ var channelLookup = map[string]Channel{
 	"whisper": ChannelWhisper,
 	"yell":    ChannelYell,
 	"ooc":     ChannelOOC,
+}
+
+// AllChannels returns the set of available chat channels.
+func AllChannels() []Channel {
+	out := make([]Channel, len(allChannels))
+	copy(out, allChannels)
+	return out
+}
+
+// ChannelFromString resolves a textual channel name into the canonical identifier.
+func ChannelFromString(name string) (Channel, bool) {
+	channel, ok := channelLookup[strings.ToLower(name)]
+	return channel, ok
 }
 
 type Player struct {
@@ -171,6 +185,24 @@ func NewWorld() (*World, error) {
 	}, nil
 }
 
+// NewWorldWithRooms constructs a world populated with the provided rooms.
+func NewWorldWithRooms(rooms map[RoomID]*Room) *World {
+	return &World{
+		rooms:   rooms,
+		players: make(map[string]*Player),
+	}
+}
+
+// AddPlayerForTest inserts a player into the world's tracking structures.
+func (w *World) AddPlayerForTest(p *Player) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.players == nil {
+		w.players = make(map[string]*Player)
+	}
+	w.players[p.Name] = p
+}
+
 type areaFile struct {
 	Name  string `json:"name"`
 	Rooms []Room `json:"rooms"`
@@ -230,6 +262,16 @@ func defaultChannelSettings() map[Channel]bool {
 	}
 }
 
+// DefaultChannelSettings exposes the default channel configuration.
+func DefaultChannelSettings() map[Channel]bool {
+	return map[Channel]bool{
+		ChannelSay:     true,
+		ChannelWhisper: true,
+		ChannelYell:    true,
+		ChannelOOC:     true,
+	}
+}
+
 func (p *Player) channelEnabled(channel Channel) bool {
 	if p.Channels == nil {
 		return true
@@ -280,7 +322,7 @@ func (w *World) removePlayer(name string) {
 	}
 }
 
-func (w *World) reboot() ([]*Player, error) {
+func (w *World) Reboot() ([]*Player, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	rooms, err := loadRooms()
@@ -296,14 +338,14 @@ func (w *World) reboot() ([]*Player, error) {
 	return revived, nil
 }
 
-func (w *World) getRoom(id RoomID) (*Room, bool) {
+func (w *World) GetRoom(id RoomID) (*Room, bool) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	r, ok := w.rooms[id]
 	return r, ok
 }
 
-func (w *World) broadcastToRoom(room RoomID, msg string, except *Player) {
+func (w *World) BroadcastToRoom(room RoomID, msg string, except *Player) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	for _, p := range w.players {
@@ -316,7 +358,7 @@ func (w *World) broadcastToRoom(room RoomID, msg string, except *Player) {
 	}
 }
 
-func (w *World) broadcastToRoomChannel(room RoomID, msg string, except *Player, channel Channel) {
+func (w *World) BroadcastToRoomChannel(room RoomID, msg string, except *Player, channel Channel) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	for _, target := range w.players {
@@ -333,7 +375,7 @@ func (w *World) broadcastToRoomChannel(room RoomID, msg string, except *Player, 
 	}
 }
 
-func (w *World) broadcastToRoomsChannel(rooms []RoomID, msg string, except *Player, channel Channel) {
+func (w *World) BroadcastToRoomsChannel(rooms []RoomID, msg string, except *Player, channel Channel) {
 	if len(rooms) == 0 {
 		return
 	}
@@ -360,7 +402,7 @@ func (w *World) broadcastToRoomsChannel(rooms []RoomID, msg string, except *Play
 	}
 }
 
-func (w *World) broadcastToAllChannel(msg string, except *Player, channel Channel) {
+func (w *World) BroadcastToAllChannel(msg string, except *Player, channel Channel) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	for _, target := range w.players {
@@ -377,7 +419,7 @@ func (w *World) broadcastToAllChannel(msg string, except *Player, channel Channe
 	}
 }
 
-func (w *World) adjacentRooms(room RoomID) []RoomID {
+func (w *World) AdjacentRooms(room RoomID) []RoomID {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	current, ok := w.rooms[room]
@@ -396,7 +438,7 @@ func (w *World) adjacentRooms(room RoomID) []RoomID {
 	return neighbors
 }
 
-func (w *World) setChannel(p *Player, channel Channel, enabled bool) {
+func (w *World) SetChannel(p *Player, channel Channel, enabled bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if _, ok := w.players[p.Name]; !ok {
@@ -408,7 +450,7 @@ func (w *World) setChannel(p *Player, channel Channel, enabled bool) {
 	p.Channels[channel] = enabled
 }
 
-func (w *World) channelStatuses(p *Player) map[Channel]bool {
+func (w *World) ChannelStatuses(p *Player) map[Channel]bool {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	statuses := make(map[Channel]bool, len(allChannels))
@@ -418,7 +460,7 @@ func (w *World) channelStatuses(p *Player) map[Channel]bool {
 	return statuses
 }
 
-func (w *World) renamePlayer(p *Player, newName string) error {
+func (w *World) RenamePlayer(p *Player, newName string) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if _, taken := w.players[newName]; taken {
@@ -430,7 +472,7 @@ func (w *World) renamePlayer(p *Player, newName string) error {
 	return nil
 }
 
-func (w *World) listPlayers(roomOnly bool, room RoomID) []string {
+func (w *World) ListPlayers(roomOnly bool, room RoomID) []string {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	names := []string{}
@@ -446,7 +488,7 @@ func (w *World) listPlayers(roomOnly bool, room RoomID) []string {
 	return names
 }
 
-func (w *World) move(p *Player, dir string) (string, error) {
+func (w *World) Move(p *Player, dir string) (string, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	r, ok := w.rooms[p.Room]

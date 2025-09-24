@@ -1,4 +1,4 @@
-package main
+package game
 
 import (
 	"crypto/rand"
@@ -114,7 +114,7 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager) {
 
 	p, err := world.addPlayer(username, session, isAdmin)
 	if err != nil {
-		_ = session.WriteString(ansi(style("\r\n"+err.Error()+"\r\n", ansiYellow)))
+		_ = session.WriteString(Ansi(Style("\r\n"+err.Error()+"\r\n", AnsiYellow)))
 		return
 	}
 
@@ -124,8 +124,8 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager) {
 		}
 	}()
 
-	p.Output <- ansi(style("\r\nWelcome to the tiny Go MUD. Type 'help' for commands.", ansiMagenta, ansiBold))
-	enterRoom(world, p, "")
+	p.Output <- Ansi(Style("\r\nWelcome to the tiny Go MUD. Type 'help' for commands.", AnsiMagenta, AnsiBold))
+	EnterRoom(world, p, "")
 
 	_ = conn.SetReadDeadline(time.Time{})
 
@@ -134,22 +134,22 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager) {
 		if err != nil {
 			break
 		}
-		line = trim(line)
+		line = Trim(line)
 		if line == "" {
-			p.Output <- prompt(p)
+			p.Output <- Prompt(p)
 			continue
 		}
 		if !p.Alive {
 			break
 		}
-		if quit := dispatch(world, p, line); quit {
+		if quit := dispatcher(world, p, line); quit {
 			break
 		}
-		p.Output <- prompt(p)
+		p.Output <- Prompt(p)
 	}
 
 	p.Alive = false
-	world.broadcastToRoom(p.Room, ansi(fmt.Sprintf("\r\n%s leaves.", highlightName(p.Name))), p)
+	world.BroadcastToRoom(p.Room, Ansi(fmt.Sprintf("\r\n%s leaves.", HighlightName(p.Name))), p)
 	world.removePlayer(p.Name)
 }
 
@@ -162,11 +162,11 @@ func main() {
 
 	world, err := NewWorld()
 	if err != nil {
-		panic(err)
+		return err
 	}
-	accounts, err := NewAccountManager("data/accounts.json")
+	accounts, err := NewAccountManager(accountsPath)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	var ln net.Listener
@@ -197,6 +197,10 @@ func main() {
 		if err != nil {
 			continue
 		}
-		go handleConn(conn, world, accounts)
+		go handleConn(conn, world, accounts, dispatcher)
 	}
+
+	// Unreachable, but included for completeness.
+	// nolint:nilerr
+	return nil
 }

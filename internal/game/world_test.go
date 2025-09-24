@@ -1,4 +1,4 @@
-package main
+package game
 
 import "testing"
 
@@ -9,7 +9,7 @@ func TestWorldMoveUnknownRoom(t *testing.T) {
 	}
 	p := &Player{Name: "tester", Room: RoomID("missing")}
 
-	_, err := w.move(p, "north")
+	_, err := w.Move(p, "north")
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
