@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -64,6 +65,28 @@ type Player struct {
 	Alive    bool
 	IsAdmin  bool
 	Channels map[Channel]bool
+	history  []time.Time
+}
+
+const (
+	commandLimit  = 5
+	commandWindow = time.Second
+)
+
+func (p *Player) allowCommand(now time.Time) bool {
+	cutoff := now.Add(-commandWindow)
+	filtered := p.history[:0]
+	for _, t := range p.history {
+		if t.After(cutoff) {
+			filtered = append(filtered, t)
+		}
+	}
+	p.history = filtered
+	if len(p.history) >= commandLimit {
+		return false
+	}
+	p.history = append(p.history, now)
+	return true
 }
 
 type World struct {
