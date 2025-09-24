@@ -148,6 +148,11 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager, dispatche
 			p.Output <- Prompt(p)
 			continue
 		}
+		if !p.allowCommand(time.Now()) {
+			p.Output <- Ansi(Style("\r\nYou are sending commands too quickly. Please wait.", AnsiYellow))
+			p.Output <- Prompt(p)
+			continue
+		}
 		if !p.Alive {
 			break
 		}
