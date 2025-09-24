@@ -77,6 +77,79 @@ func TestWorldTakeDropItem(t *testing.T) {
 	}
 }
 
+func TestWorldTakeItemMatchesPartialWord(t *testing.T) {
+	roomID := RoomID("vault")
+	item := Item{Name: "Crystal Key"}
+	world := &World{
+		rooms: map[RoomID]*Room{
+			roomID: {
+				ID:    roomID,
+				Exits: map[string]RoomID{},
+				Items: []Item{item},
+			},
+		},
+		players: make(map[string]*Player),
+	}
+	player := &Player{Name: "Collector", Room: roomID, Alive: true}
+	world.players[player.Name] = player
+
+	taken, err := world.TakeItem(player, "key")
+	if err != nil {
+		t.Fatalf("TakeItem returned error: %v", err)
+	}
+	if taken == nil || taken.Name != item.Name {
+		t.Fatalf("TakeItem returned %+v, want %+v", taken, item)
+	}
+}
+
+func TestWorldTakeItemPartialAmbiguous(t *testing.T) {
+	roomID := RoomID("closet")
+	world := &World{
+		rooms: map[RoomID]*Room{
+			roomID: {
+				ID:    roomID,
+				Exits: map[string]RoomID{},
+				Items: []Item{{Name: "Silver Key"}, {Name: "Steel Key"}},
+			},
+		},
+		players: make(map[string]*Player),
+	}
+	player := &Player{Name: "Collector", Room: roomID, Alive: true}
+	world.players[player.Name] = player
+
+	if _, err := world.TakeItem(player, "key"); !errors.Is(err, ErrItemNotFound) {
+		t.Fatalf("expected ErrItemNotFound for ambiguous match, got %v", err)
+	}
+}
+
+func TestWorldFindPlayerPartialMatch(t *testing.T) {
+	world := &World{players: make(map[string]*Player)}
+	alice := &Player{Name: "Alice", Alive: true}
+	alfred := &Player{Name: "Alfred", Alive: true}
+	bob := &Player{Name: "Bob", Alive: true}
+	world.players[alice.Name] = alice
+	world.players[alfred.Name] = alfred
+	world.players[bob.Name] = bob
+
+	if p, ok := world.FindPlayer("ali"); !ok || p != alice {
+		t.Fatalf("FindPlayer partial prefix = (%v, %t), want Alice, true", p, ok)
+	}
+	if p, ok := world.FindPlayer("Alice"); !ok || p != alice {
+		t.Fatalf("FindPlayer exact case-sensitive = (%v, %t), want Alice, true", p, ok)
+	}
+	if p, ok := world.FindPlayer("bob"); !ok || p != bob {
+		t.Fatalf("FindPlayer case-insensitive = (%v, %t), want Bob, true", p, ok)
+	}
+	if _, ok := world.FindPlayer("al"); ok {
+		t.Fatalf("expected ambiguous partial to fail")
+	}
+
+	alfred.Alive = false
+	if p, ok := world.FindPlayer("al"); !ok || p != alice {
+		t.Fatalf("FindPlayer should ignore offline players, got (%v, %t)", p, ok)
+	}
+}
+
 func TestPlayerAllowCommandThrottles(t *testing.T) {
 	p := &Player{}
 	base := time.Now()

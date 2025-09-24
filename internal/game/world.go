@@ -899,20 +899,19 @@ func (w *World) ListPlayers(roomOnly bool, room RoomID) []string {
 	return names
 }
 
-func normalizeItemName(name string) string {
-	return strings.ToLower(strings.TrimSpace(name))
-}
-
 func findItemIndex(items []Item, target string) int {
 	if target == "" {
 		return -1
 	}
+	names := make([]string, len(items))
 	for i, item := range items {
-		if normalizeItemName(item.Name) == target {
-			return i
-		}
+		names[i] = item.Name
 	}
-	return -1
+	idx, ok := uniqueMatch(target, names, true)
+	if !ok {
+		return -1
+	}
+	return idx
 }
 
 // RoomItems returns a copy of the items present in the specified room.
@@ -943,7 +942,7 @@ func (w *World) PlayerInventory(p *Player) []Item {
 
 // TakeItem moves an item from the player's current room into their inventory.
 func (w *World) TakeItem(p *Player, name string) (*Item, error) {
-	target := normalizeItemName(name)
+	target := strings.TrimSpace(name)
 	if target == "" {
 		return nil, fmt.Errorf("item name must not be empty")
 	}
@@ -969,7 +968,7 @@ func (w *World) TakeItem(p *Player, name string) (*Item, error) {
 
 // DropItem places an item from the player's inventory into their current room.
 func (w *World) DropItem(p *Player, name string) (*Item, error) {
-	target := normalizeItemName(name)
+	target := strings.TrimSpace(name)
 	if target == "" {
 		return nil, fmt.Errorf("item name must not be empty")
 	}
@@ -1015,19 +1014,27 @@ func (w *World) Move(p *Player, dir string) (string, error) {
 }
 
 func (w *World) findPlayerLocked(name string) (*Player, bool) {
-	if p, ok := w.players[name]; ok && p.Alive {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return nil, false
+	}
+	if p, ok := w.players[trimmed]; ok && p.Alive {
 		return p, true
 	}
-	lower := strings.ToLower(name)
+	candidates := make([]*Player, 0, len(w.players))
+	names := make([]string, 0, len(w.players))
 	for _, p := range w.players {
 		if !p.Alive {
 			continue
 		}
-		if strings.ToLower(p.Name) == lower {
-			return p, true
-		}
+		candidates = append(candidates, p)
+		names = append(names, p.Name)
 	}
-	return nil, false
+	idx, ok := uniqueMatch(trimmed, names, false)
+	if !ok {
+		return nil, false
+	}
+	return candidates[idx], true
 }
 
 // FindPlayer locates an online player by name, performing a case-insensitive match.
