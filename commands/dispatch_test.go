@@ -1,83 +1,40 @@
-package main
+package commands
 
 import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"aiMud/internal/game"
 )
 
-func TestExitListSortsDirections(t *testing.T) {
-	r := &Room{
-		Exits: map[string]RoomID{
-			"west":  "room_w",
-			"north": "room_n",
-			"east":  "room_e",
-		},
-	}
-
-	const want = "east north west"
-
-	for i := 0; i < 5; i++ {
-		if got := exitList(r); got != want {
-			t.Fatalf("exitList() = %q, want %q", got, want)
-		}
-	}
-}
-
-func TestExitListHandlesNoExits(t *testing.T) {
-	r := &Room{Exits: map[string]RoomID{}}
-	if got := exitList(r); got != "none" {
-		t.Fatalf("exitList() = %q, want %q", got, "none")
-	}
-}
-
-func TestFilterOutRemovesName(t *testing.T) {
-	list := []string{"hero", "villain", "sidekick"}
-	got := filterOut(list, "hero")
-	want := []string{"villain", "sidekick"}
-	if len(got) != len(want) {
-		t.Fatalf("filterOut() len = %d, want %d", len(got), len(want))
-	}
-	for i, name := range want {
-		if got[i] != name {
-			t.Fatalf("filterOut()[%d] = %q, want %q", i, got[i], name)
-		}
-	}
-	if len(list) != 3 {
-		t.Fatalf("filterOut() modified input slice: %v", list)
-	}
-}
-
 func TestDispatchGoMovesPlayerAndNotifiesRooms(t *testing.T) {
-	world := &World{
-		rooms: map[RoomID]*Room{
-			"start": {
-				ID:          "start",
-				Title:       "Starting Room",
-				Description: "A quiet foyer.",
-				Exits: map[string]RoomID{
-					"east": "second",
-				},
-			},
-			"second": {
-				ID:          "second",
-				Title:       "Second Room",
-				Description: "A bustling plaza.",
-				Exits: map[string]RoomID{
-					"west": "start",
-				},
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"start": {
+			ID:          "start",
+			Title:       "Starting Room",
+			Description: "A quiet foyer.",
+			Exits: map[string]game.RoomID{
+				"east": "second",
 			},
 		},
-		players: make(map[string]*Player),
-	}
+		"second": {
+			ID:          "second",
+			Title:       "Second Room",
+			Description: "A bustling plaza.",
+			Exits: map[string]game.RoomID{
+				"west": "start",
+			},
+		},
+	})
 	hero := newTestPlayer("Hero", "start")
 	watcher := newTestPlayer("Watcher", "start")
 	greeter := newTestPlayer("Greeter", "second")
-	world.players[hero.Name] = hero
-	world.players[watcher.Name] = watcher
-	world.players[greeter.Name] = greeter
+	world.AddPlayerForTest(hero)
+	world.AddPlayerForTest(watcher)
+	world.AddPlayerForTest(greeter)
 
-	if done := dispatch(world, hero, "go east"); done {
+	if done := Dispatch(world, hero, "go east"); done {
 		t.Fatalf("dispatch returned true, want false")
 	}
 	if hero.Room != "second" {
@@ -117,23 +74,20 @@ func TestDispatchGoMovesPlayerAndNotifiesRooms(t *testing.T) {
 }
 
 func TestDispatchSayBroadcastsToRoomChannel(t *testing.T) {
-	world := &World{
-		rooms: map[RoomID]*Room{
-			"hall": {
-				ID:          "hall",
-				Title:       "Hall",
-				Description: "An empty hall.",
-				Exits:       map[string]RoomID{},
-			},
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"hall": {
+			ID:          "hall",
+			Title:       "Hall",
+			Description: "An empty hall.",
+			Exits:       map[string]game.RoomID{},
 		},
-		players: make(map[string]*Player),
-	}
+	})
 	speaker := newTestPlayer("Speaker", "hall")
 	listener := newTestPlayer("Listener", "hall")
-	world.players[speaker.Name] = speaker
-	world.players[listener.Name] = listener
+	world.AddPlayerForTest(speaker)
+	world.AddPlayerForTest(listener)
 
-	if done := dispatch(world, speaker, "say hello there"); done {
+	if done := Dispatch(world, speaker, "say hello there"); done {
 		t.Fatalf("dispatch returned true, want false")
 	}
 
@@ -149,31 +103,28 @@ func TestDispatchSayBroadcastsToRoomChannel(t *testing.T) {
 }
 
 func TestDispatchChannelToggleDisablesSay(t *testing.T) {
-	world := &World{
-		rooms: map[RoomID]*Room{
-			"hall": {
-				ID:          "hall",
-				Title:       "Hall",
-				Description: "An empty hall.",
-				Exits:       map[string]RoomID{},
-			},
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"hall": {
+			ID:          "hall",
+			Title:       "Hall",
+			Description: "An empty hall.",
+			Exits:       map[string]game.RoomID{},
 		},
-		players: make(map[string]*Player),
-	}
+	})
 	talker := newTestPlayer("Talker", "hall")
 	target := newTestPlayer("Target", "hall")
-	world.players[talker.Name] = talker
-	world.players[target.Name] = target
+	world.AddPlayerForTest(talker)
+	world.AddPlayerForTest(target)
 
-	if done := dispatch(world, target, "channel say off"); done {
+	if done := Dispatch(world, target, "channel say off"); done {
 		t.Fatalf("dispatch returned true during channel command")
 	}
-	if target.Channels[ChannelSay] {
+	if target.Channels[game.ChannelSay] {
 		t.Fatalf("channel was not disabled: %+v", target.Channels)
 	}
 	drainOutput(target.Output)
 
-	if done := dispatch(world, talker, "say testing"); done {
+	if done := Dispatch(world, talker, "say testing"); done {
 		t.Fatalf("dispatch returned true during say command")
 	}
 
@@ -187,13 +138,13 @@ func TestDispatchChannelToggleDisablesSay(t *testing.T) {
 	}
 }
 
-func newTestPlayer(name string, room RoomID) *Player {
-	return &Player{
+func newTestPlayer(name string, room game.RoomID) *game.Player {
+	return &game.Player{
 		Name:     name,
 		Room:     room,
 		Output:   make(chan string, 32),
 		Alive:    true,
-		Channels: defaultChannelSettings(),
+		Channels: game.DefaultChannelSettings(),
 	}
 }
 
@@ -204,7 +155,7 @@ func drainOutput(ch chan string) []string {
 	for {
 		select {
 		case msg := <-ch:
-			cleaned := trim(ansiPattern.ReplaceAllString(msg, ""))
+			cleaned := game.Trim(ansiPattern.ReplaceAllString(msg, ""))
 			if cleaned != "" {
 				t = append(t, cleaned)
 			}

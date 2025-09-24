@@ -1,4 +1,4 @@
-package main
+package game
 
 import (
 	"fmt"
@@ -29,55 +29,55 @@ func validatePassword(password string) error {
 }
 
 func login(session *TelnetSession, accounts *AccountManager) (string, bool, error) {
-	_ = session.WriteString(ansi(style("\r\nLogin required.\r\n", ansiMagenta, ansiBold)))
+	_ = session.WriteString(Ansi(Style("\r\nLogin required.\r\n", AnsiMagenta, AnsiBold)))
 	for attempts := 0; attempts < 5; attempts++ {
-		_ = session.WriteString(ansi("\r\nUsername: "))
+		_ = session.WriteString(Ansi("\r\nUsername: "))
 		username, err := session.ReadLine()
 		if err != nil {
 			return "", false, err
 		}
-		username = trim(username)
+		username = Trim(username)
 		if err := validateUsername(username); err != nil {
-			_ = session.WriteString(ansi(style("\r\n"+err.Error(), ansiYellow)))
+			_ = session.WriteString(Ansi(Style("\r\n"+err.Error(), AnsiYellow)))
 			continue
 		}
 		if accounts.Exists(username) {
 			for tries := 0; tries < 3; tries++ {
-				_ = session.WriteString(ansi("\r\nPassword: "))
+				_ = session.WriteString(Ansi("\r\nPassword: "))
 				password, err := session.ReadLine()
 				if err != nil {
 					return "", false, err
 				}
-				password = trim(password)
+				password = Trim(password)
 				if accounts.Authenticate(username, password) {
-					_ = session.WriteString(ansi(style("\r\nWelcome back, "+username+"!", ansiGreen)))
+					_ = session.WriteString(Ansi(Style("\r\nWelcome back, "+username+"!", AnsiGreen)))
 					return username, strings.EqualFold(username, "admin"), nil
 				}
-				_ = session.WriteString(ansi(style("\r\nIncorrect password.", ansiYellow)))
+				_ = session.WriteString(Ansi(Style("\r\nIncorrect password.", AnsiYellow)))
 			}
-			_ = session.WriteString(ansi("\r\nToo many failed attempts.\r\n"))
+			_ = session.WriteString(Ansi("\r\nToo many failed attempts.\r\n"))
 			return "", false, fmt.Errorf("authentication failed")
 		}
 
 		for {
-			_ = session.WriteString(ansi("\r\nSet a password: "))
+			_ = session.WriteString(Ansi("\r\nSet a password: "))
 			password, err := session.ReadLine()
 			if err != nil {
 				return "", false, err
 			}
-			password = trim(password)
+			password = Trim(password)
 			if err := validatePassword(password); err != nil {
-				_ = session.WriteString(ansi(style("\r\n"+err.Error(), ansiYellow)))
+				_ = session.WriteString(Ansi(Style("\r\n"+err.Error(), AnsiYellow)))
 				continue
 			}
 			if err := accounts.Register(username, password); err != nil {
-				_ = session.WriteString(ansi(style("\r\n"+err.Error(), ansiYellow)))
+				_ = session.WriteString(Ansi(Style("\r\n"+err.Error(), AnsiYellow)))
 				break
 			}
-			_ = session.WriteString(ansi(style("\r\nAccount created. Welcome, "+username+"!", ansiGreen)))
+			_ = session.WriteString(Ansi(Style("\r\nAccount created. Welcome, "+username+"!", AnsiGreen)))
 			return username, strings.EqualFold(username, "admin"), nil
 		}
 	}
-	_ = session.WriteString(ansi("\r\nLogin cancelled.\r\n"))
+	_ = session.WriteString(Ansi("\r\nLogin cancelled.\r\n"))
 	return "", false, fmt.Errorf("login cancelled")
 }
