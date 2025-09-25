@@ -7,6 +7,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -122,6 +124,100 @@ func TestWorldTakeItemPartialAmbiguous(t *testing.T) {
 
 	if _, err := world.TakeItem(player, "key"); !errors.Is(err, ErrItemNotFound) {
 		t.Fatalf("expected ErrItemNotFound for ambiguous match, got %v", err)
+	}
+}
+
+func TestCloneRoomPopulationUnknownSource(t *testing.T) {
+	targetID := RoomID("target")
+	world := &World{
+		rooms: map[RoomID]*Room{
+			targetID: {
+				ID:    targetID,
+				Items: []Item{{Name: "keep"}},
+			},
+		},
+	}
+
+	err := world.CloneRoomPopulation(RoomID("missing"), targetID)
+	if err == nil || err.Error() != "unknown room: missing" {
+		t.Fatalf("expected unknown room error, got %v", err)
+	}
+
+	if got := world.rooms[targetID].Items; len(got) != 1 || got[0].Name != "keep" {
+		t.Fatalf("target room mutated on failure: %+v", got)
+	}
+}
+
+func TestCloneRoomPopulationUnknownTarget(t *testing.T) {
+	sourceID := RoomID("source")
+	world := &World{
+		rooms: map[RoomID]*Room{
+			sourceID: {
+				ID:    sourceID,
+				Items: []Item{{Name: "copy"}},
+			},
+		},
+	}
+
+	err := world.CloneRoomPopulation(sourceID, RoomID("missing"))
+	if err == nil || err.Error() != "unknown room: missing" {
+		t.Fatalf("expected unknown room error, got %v", err)
+	}
+
+	if got := world.rooms[sourceID].Items; len(got) != 1 || got[0].Name != "copy" {
+		t.Fatalf("source room mutated on failure: %+v", got)
+	}
+}
+
+func TestCloneRoomPopulationPersistFailureRollsBack(t *testing.T) {
+	dir := t.TempDir()
+	blocker := filepath.Join(dir, "blocker")
+	if err := os.WriteFile(blocker, []byte(""), 0o600); err != nil {
+		t.Fatalf("WriteFile blocker: %v", err)
+	}
+
+	sourceID := RoomID("source")
+	targetID := RoomID("target")
+	initialItems := []Item{{Name: "original item"}}
+	initialNPCs := []NPC{{Name: "Guide"}}
+	initialResets := []RoomReset{{Kind: ResetKindItem, Name: "original item", Count: 1}}
+	world := &World{
+		rooms: map[RoomID]*Room{
+			sourceID: {
+				ID:     sourceID,
+				Items:  []Item{{Name: "cloned"}},
+				NPCs:   []NPC{{Name: "Goblin"}},
+				Resets: []RoomReset{{Kind: ResetKindNPC, Name: "Goblin"}},
+			},
+			targetID: {
+				ID:     targetID,
+				Items:  append([]Item(nil), initialItems...),
+				NPCs:   append([]NPC(nil), initialNPCs...),
+				Resets: append([]RoomReset(nil), initialResets...),
+			},
+		},
+		roomSources: map[RoomID]string{
+			targetID: "stock.json",
+		},
+		builderPath: filepath.Join(blocker, "builder.json"),
+	}
+
+	err := world.CloneRoomPopulation(sourceID, targetID)
+	if err == nil || !strings.Contains(err.Error(), "create builder area directory") {
+		t.Fatalf("expected persistence error, got %v", err)
+	}
+
+	if !reflect.DeepEqual(world.rooms[targetID].Items, initialItems) {
+		t.Fatalf("items not rolled back: got %+v want %+v", world.rooms[targetID].Items, initialItems)
+	}
+	if !reflect.DeepEqual(world.rooms[targetID].NPCs, initialNPCs) {
+		t.Fatalf("npcs not rolled back: got %+v want %+v", world.rooms[targetID].NPCs, initialNPCs)
+	}
+	if !reflect.DeepEqual(world.rooms[targetID].Resets, initialResets) {
+		t.Fatalf("resets not rolled back: got %+v want %+v", world.rooms[targetID].Resets, initialResets)
+	}
+	if got := world.roomSources[targetID]; got != "stock.json" {
+		t.Fatalf("roomSources not restored: got %q want %q", got, "stock.json")
 	}
 }
 
