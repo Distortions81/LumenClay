@@ -439,3 +439,61 @@ func TestWorldSetHomePersists(t *testing.T) {
 		t.Fatalf("expected room %q, got %q", player.Room, saved.Room)
 	}
 }
+
+func TestListPlayersUsesLoginOrder(t *testing.T) {
+	rooms := map[RoomID]*Room{
+		StartRoom: {ID: StartRoom, Exits: map[string]RoomID{"east": "hall"}},
+		"hall":    {ID: "hall", Exits: map[string]RoomID{"west": StartRoom}},
+	}
+	world := NewWorldWithRooms(rooms)
+
+	alpha := &Player{Name: "Alpha", Room: StartRoom, Output: make(chan string, 1), Alive: true}
+	bravo := &Player{Name: "Bravo", Room: "hall", Output: make(chan string, 1), Alive: true}
+	charlie := &Player{Name: "Charlie", Room: StartRoom, Output: make(chan string, 1), Alive: true}
+
+	world.AddPlayerForTest(alpha)
+	world.AddPlayerForTest(bravo)
+	world.AddPlayerForTest(charlie)
+
+	names := world.ListPlayers(false, "")
+	want := []string{"Alpha", "Bravo", "Charlie"}
+	if len(names) != len(want) {
+		t.Fatalf("ListPlayers length = %d, want %d", len(names), len(want))
+	}
+	for i, name := range want {
+		if names[i] != name {
+			t.Fatalf("ListPlayers[%d] = %q, want %q", i, names[i], name)
+		}
+	}
+
+	roomOnly := world.ListPlayers(true, "hall")
+	if len(roomOnly) != 1 || roomOnly[0] != "Bravo" {
+		t.Fatalf("ListPlayers room filter = %v, want [Bravo]", roomOnly)
+	}
+
+	world.removePlayer("Alpha")
+
+	returning := &Player{Name: "Alpha", Room: "hall", Output: make(chan string, 1), Alive: true}
+	world.AddPlayerForTest(returning)
+
+	names = world.ListPlayers(false, "")
+	want = []string{"Bravo", "Charlie", "Alpha"}
+	if len(names) != len(want) {
+		t.Fatalf("ListPlayers length after rejoin = %d, want %d", len(names), len(want))
+	}
+	for i, name := range want {
+		if names[i] != name {
+			t.Fatalf("ListPlayers after rejoin[%d] = %q, want %q", i, names[i], name)
+		}
+	}
+
+	locations := world.PlayerLocations()
+	if len(locations) != len(want) {
+		t.Fatalf("PlayerLocations length = %d, want %d", len(locations), len(want))
+	}
+	for i, loc := range locations {
+		if loc.Name != want[i] {
+			t.Fatalf("PlayerLocations[%d] = %q, want %q", i, loc.Name, want[i])
+		}
+	}
+}

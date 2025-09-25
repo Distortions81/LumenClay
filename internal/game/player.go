@@ -15,6 +15,7 @@ type Player struct {
 	IsBuilder bool
 	Channels  map[Channel]bool
 	Inventory []Item
+	JoinedAt  time.Time
 	history   []time.Time
 }
 

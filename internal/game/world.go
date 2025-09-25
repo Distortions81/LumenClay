@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 // DefaultAreasPath is the on-disk location of bundled areas.
@@ -71,6 +72,7 @@ type World struct {
 	mu          sync.RWMutex
 	rooms       map[RoomID]*Room
 	players     map[string]*Player
+	playerOrder []string
 	areasPath   string
 	accounts    *AccountManager
 	roomSources map[RoomID]string
@@ -91,6 +93,7 @@ func NewWorld(areasPath string) (*World, error) {
 	return &World{
 		rooms:       rooms,
 		players:     make(map[string]*Player),
+		playerOrder: make([]string, 0),
 		areasPath:   areasPath,
 		roomSources: sources,
 		builderPath: filepath.Join(areasPath, builderAreaFile),
@@ -102,6 +105,7 @@ func NewWorldWithRooms(rooms map[RoomID]*Room) *World {
 	return &World{
 		rooms:       rooms,
 		players:     make(map[string]*Player),
+		playerOrder: make([]string, 0),
 		roomSources: make(map[RoomID]string, len(rooms)),
 	}
 }
@@ -131,6 +135,9 @@ func (w *World) AddPlayerForTest(p *Player) {
 	if w.players == nil {
 		w.players = make(map[string]*Player)
 	}
+	if w.playerOrder == nil {
+		w.playerOrder = make([]string, 0, len(w.players)+1)
+	}
 	if p.Account == "" {
 		p.Account = p.Name
 	}
@@ -141,7 +148,11 @@ func (w *World) AddPlayerForTest(p *Player) {
 			p.Home = StartRoom
 		}
 	}
+	now := time.Now()
+	p.JoinedAt = now
 	w.players[p.Name] = p
+	w.removePlayerOrderLocked(p.Name)
+	w.playerOrder = append(w.playerOrder, p.Name)
 }
 
 type areaFile struct {
@@ -362,6 +373,7 @@ func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool, pro
 	}
 
 	w.mu.Lock()
+	now := time.Now()
 	if existing, ok := w.players[name]; ok {
 		if existing.Alive {
 			w.mu.Unlock()
@@ -375,6 +387,9 @@ func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool, pro
 		existing.IsAdmin = isAdmin
 		existing.Account = name
 		existing.Channels = cloneChannelSettings(channels)
+		existing.JoinedAt = now
+		w.removePlayerOrderLocked(name)
+		w.playerOrder = append(w.playerOrder, name)
 		persistChannels := cloneChannelSettings(existing.Channels)
 		account := existing.Account
 		currentRoom := existing.Room
@@ -396,8 +411,11 @@ func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool, pro
 		IsAdmin:   isAdmin,
 		IsBuilder: false,
 		Channels:  cloneChannelSettings(playerChannels),
+		JoinedAt:  now,
 	}
 	w.players[name] = p
+	w.removePlayerOrderLocked(name)
+	w.playerOrder = append(w.playerOrder, name)
 	persistChannels := cloneChannelSettings(playerChannels)
 	account := p.Account
 	currentRoom := p.Room
@@ -412,6 +430,7 @@ func (w *World) removePlayer(name string) {
 	defer w.mu.Unlock()
 	if p, ok := w.players[name]; ok {
 		delete(w.players, name)
+		w.removePlayerOrderLocked(name)
 		close(p.Output)
 	}
 }
@@ -601,17 +620,24 @@ func (w *World) RenamePlayer(p *Player, newName string) error {
 	if _, taken := w.players[newName]; taken {
 		return fmt.Errorf("that name is taken")
 	}
+	oldName := p.Name
 	delete(w.players, p.Name)
 	p.Name = newName
 	w.players[newName] = p
+	w.replacePlayerOrderLocked(oldName, newName)
 	return nil
 }
 
 func (w *World) ListPlayers(roomOnly bool, room RoomID) []string {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
-	names := []string{}
-	for _, p := range w.players {
+	names := make([]string, 0, len(w.playerOrder))
+	seen := make(map[string]struct{}, len(w.playerOrder))
+	for _, name := range w.playerOrder {
+		p, ok := w.players[name]
+		if !ok {
+			continue
+		}
 		if !p.Alive {
 			continue
 		}
@@ -619,6 +645,21 @@ func (w *World) ListPlayers(roomOnly bool, room RoomID) []string {
 			continue
 		}
 		names = append(names, p.Name)
+		seen[p.Name] = struct{}{}
+	}
+	if len(seen) != len(w.players) {
+		for _, p := range w.players {
+			if !p.Alive {
+				continue
+			}
+			if roomOnly && p.Room != room {
+				continue
+			}
+			if _, ok := seen[p.Name]; ok {
+				continue
+			}
+			names = append(names, p.Name)
+		}
 	}
 	return names
 }
@@ -1319,19 +1360,49 @@ func (w *World) applyRoomResetsLocked(room *Room) {
 	}
 }
 
-// PlayerLocations returns the set of connected players and their rooms sorted by name.
+// PlayerLocations returns the set of connected players and their rooms in login order.
 func (w *World) PlayerLocations() []PlayerLocation {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	locations := make([]PlayerLocation, 0, len(w.players))
-	for _, p := range w.players {
-		if !p.Alive {
+	seen := make(map[string]struct{}, len(w.playerOrder))
+	for _, name := range w.playerOrder {
+		p, ok := w.players[name]
+		if !ok || !p.Alive {
 			continue
 		}
 		locations = append(locations, PlayerLocation{Name: p.Name, Room: p.Room})
+		seen[p.Name] = struct{}{}
 	}
-	sort.Slice(locations, func(i, j int) bool {
-		return locations[i].Name < locations[j].Name
-	})
+	if len(seen) != len(w.players) {
+		for _, p := range w.players {
+			if !p.Alive {
+				continue
+			}
+			if _, ok := seen[p.Name]; ok {
+				continue
+			}
+			locations = append(locations, PlayerLocation{Name: p.Name, Room: p.Room})
+		}
+	}
 	return locations
+}
+
+func (w *World) removePlayerOrderLocked(name string) {
+	for i, existing := range w.playerOrder {
+		if existing == name {
+			w.playerOrder = append(w.playerOrder[:i], w.playerOrder[i+1:]...)
+			return
+		}
+	}
+}
+
+func (w *World) replacePlayerOrderLocked(oldName, newName string) {
+	for i, existing := range w.playerOrder {
+		if existing == oldName {
+			w.playerOrder[i] = newName
+			return
+		}
+	}
+	w.playerOrder = append(w.playerOrder, newName)
 }
