@@ -226,6 +226,13 @@ func listenAndServe(addr, accountsPath, areasPath, adminAccount string, dispatch
 	}
 	world.AttachAccountManager(accounts)
 
+	mailPath := filepath.Join(filepath.Dir(accountsPath), "mail.json")
+	mail, err := NewMailSystem(mailPath)
+	if err != nil {
+		return err
+	}
+	world.AttachMailSystem(mail)
+
 	var ln net.Listener
 	if cfg.enableTLS {
 		cert, created, err := ensureCertificate(cfg.certFile, cfg.keyFile, addr)
