@@ -21,9 +21,11 @@ import (
 type Dispatcher func(*World, *Player, string) bool
 
 type serverConfig struct {
-	enableTLS bool
-	certFile  string
-	keyFile   string
+	enableTLS       bool
+	certFile        string
+	keyFile         string
+	forceAllAdmin   bool
+	lockCriticalOps bool
 }
 
 const (
@@ -233,20 +235,28 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager, dispatche
 // ListenAndServe starts a MUD server on the provided address using the
 // account database at accountsPath. The dispatcher is used to execute player
 // commands. Players logging in with adminAccount (case-insensitive) receive
-// administrator privileges. It returns when the listener encounters a fatal
+// administrator privileges unless forceAllAdmin is enabled, which grants
+// administrator status to all players and temporarily disables critical
+// maintenance commands. It returns when the listener encounters a fatal
 // error.
-func ListenAndServe(addr, accountsPath, areasPath, adminAccount string, dispatcher Dispatcher) error {
-	return listenAndServe(addr, accountsPath, areasPath, adminAccount, dispatcher, serverConfig{})
+func ListenAndServe(addr, accountsPath, areasPath, adminAccount string, dispatcher Dispatcher, forceAllAdmin bool) error {
+	cfg := serverConfig{
+		forceAllAdmin:   forceAllAdmin,
+		lockCriticalOps: forceAllAdmin,
+	}
+	return listenAndServe(addr, accountsPath, areasPath, adminAccount, dispatcher, cfg)
 }
 
 // ListenAndServeTLS behaves like ListenAndServe but secures the connection
 // using TLS with the provided certificate and key files. If the files do not
 // exist, a self-signed certificate is generated.
-func ListenAndServeTLS(addr, accountsPath, areasPath, certFile, keyFile, adminAccount string, dispatcher Dispatcher) error {
+func ListenAndServeTLS(addr, accountsPath, areasPath, certFile, keyFile, adminAccount string, dispatcher Dispatcher, forceAllAdmin bool) error {
 	cfg := serverConfig{
-		enableTLS: true,
-		certFile:  certFile,
-		keyFile:   keyFile,
+		enableTLS:       true,
+		certFile:        certFile,
+		keyFile:         keyFile,
+		forceAllAdmin:   forceAllAdmin,
+		lockCriticalOps: forceAllAdmin,
 	}
 	return listenAndServe(addr, accountsPath, areasPath, adminAccount, dispatcher, cfg)
 }
@@ -269,6 +279,7 @@ func listenAndServe(addr, accountsPath, areasPath, adminAccount string, dispatch
 	if err != nil {
 		return err
 	}
+	world.ConfigurePrivileges(cfg.forceAllAdmin, cfg.lockCriticalOps)
 	world.AttachAccountManager(accounts)
 
 	mailPath := filepath.Join(filepath.Dir(accountsPath), "mail.json")

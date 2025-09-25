@@ -12,6 +12,10 @@ var Reboot = Define(Definition{
 		ctx.Player.Output <- game.Ansi(game.Style("\r\nOnly admins may reboot the world.", game.AnsiYellow))
 		return false
 	}
+	if ctx.World.CriticalOperationsLocked() {
+		ctx.Player.Output <- game.Ansi(game.Style("\r\nWorld reboot is temporarily disabled.", game.AnsiYellow))
+		return false
+	}
 	ctx.Player.Output <- game.Ansi(game.Style("\r\nRebooting the world...", game.AnsiMagenta, game.AnsiBold))
 	players, err := ctx.World.Reboot()
 	if err != nil {
