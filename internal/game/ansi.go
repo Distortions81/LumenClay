@@ -49,7 +49,18 @@ func HighlightItemName(name string) string {
 
 // Trim normalises a telnet input line.
 func Trim(s string) string {
-	return strings.TrimSpace(strings.ReplaceAll(s, "\r", ""))
+	cleaned := sanitizeInput(s)
+	cleaned = strings.TrimSpace(cleaned)
+	if cleaned == "" {
+		return ""
+	}
+	// Normalise any sequences of whitespace introduced during sanitisation to single spaces
+	// to avoid leaking unexpected spacing into command handling.
+	fields := strings.Fields(cleaned)
+	if len(fields) == 0 {
+		return ""
+	}
+	return strings.Join(fields, " ")
 }
 
 // Ansi ensures output strings end with a reset sequence.

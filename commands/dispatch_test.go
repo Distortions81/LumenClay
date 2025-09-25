@@ -102,6 +102,36 @@ func TestDispatchSayBroadcastsToRoomChannel(t *testing.T) {
 	}
 }
 
+func TestDispatchSayStripsUnsafeCharacters(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"hall": {
+			ID:          "hall",
+			Title:       "Hall",
+			Description: "An empty hall.",
+			Exits:       map[string]game.RoomID{},
+		},
+	})
+	speaker := newTestPlayer("Speaker", "hall")
+	listener := newTestPlayer("Listener", "hall")
+	world.AddPlayerForTest(speaker)
+	world.AddPlayerForTest(listener)
+
+	input := "say he\x07llo \u202eworld"
+	if done := Dispatch(world, speaker, input); done {
+		t.Fatalf("dispatch returned true, want false")
+	}
+
+	speakerMsgs := drainOutput(speaker.Output)
+	if len(speakerMsgs) == 0 || speakerMsgs[len(speakerMsgs)-1] != "You say: hello world" {
+		t.Fatalf("speaker output unexpected: %v", speakerMsgs)
+	}
+
+	listenerMsgs := drainOutput(listener.Output)
+	if len(listenerMsgs) == 0 || listenerMsgs[len(listenerMsgs)-1] != "Speaker says: hello world" {
+		t.Fatalf("listener output unexpected: %v", listenerMsgs)
+	}
+}
+
 func TestDispatchAutocompletePrefix(t *testing.T) {
 	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
 		"hall": {
