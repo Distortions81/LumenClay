@@ -498,6 +498,62 @@ func TestWorldPersistsState(t *testing.T) {
 	}
 }
 
+func TestWorldPrepareTakeover(t *testing.T) {
+	rooms := map[RoomID]*Room{StartRoom: {ID: StartRoom}}
+	world := NewWorldWithRooms(rooms)
+
+	profile := PlayerProfile{Room: StartRoom}
+	player, err := world.addPlayer("traveler", nil, false, profile)
+	if err != nil {
+		t.Fatalf("addPlayer: %v", err)
+	}
+
+	if _, ok := world.ActivePlayer("traveler"); !ok {
+		t.Fatalf("ActivePlayer should report the connected player")
+	}
+
+	oldSession, oldOutput, ok := world.PrepareTakeover("traveler")
+	if !ok {
+		t.Fatalf("PrepareTakeover should succeed when the player is connected")
+	}
+	if oldSession != nil {
+		t.Fatalf("PrepareTakeover should return nil session when none was set")
+	}
+	if oldOutput == nil {
+		t.Fatalf("PrepareTakeover should return the prior output channel")
+	}
+	if player.Alive {
+		t.Fatalf("player should be marked inactive after takeover preparation")
+	}
+	if player.Session != nil {
+		t.Fatalf("player session should be cleared during takeover preparation")
+	}
+	if player.Output != nil {
+		t.Fatalf("player output channel should be cleared during takeover preparation")
+	}
+	if _, ok := world.ActivePlayer("traveler"); ok {
+		t.Fatalf("ActivePlayer should not report a player pending takeover")
+	}
+
+	close(oldOutput)
+
+	rejoined, err := world.addPlayer("traveler", nil, false, profile)
+	if err != nil {
+		t.Fatalf("addPlayer after takeover: %v", err)
+	}
+	if !rejoined.Alive {
+		t.Fatalf("player should be marked alive after rejoining")
+	}
+	if rejoined.Output == nil {
+		t.Fatalf("rejoined player should have a fresh output channel")
+	}
+
+	names := world.ListPlayers(false, "")
+	if len(names) != 1 || names[0] != "traveler" {
+		t.Fatalf("ListPlayers = %v, want [traveler]", names)
+	}
+}
+
 func TestWorldSetHomePersists(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "accounts.json")

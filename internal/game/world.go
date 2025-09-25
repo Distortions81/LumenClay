@@ -80,6 +80,45 @@ type World struct {
 	builderPath string
 }
 
+// ActivePlayer returns the currently connected player with the provided name.
+// The second return value reports whether a living session was found.
+func (w *World) ActivePlayer(name string) (*Player, bool) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if w.players == nil {
+		return nil, false
+	}
+	p, ok := w.players[name]
+	if !ok || !p.Alive {
+		return nil, false
+	}
+	return p, true
+}
+
+// PrepareTakeover detaches the active session for the provided player so that
+// another connection can assume control. It returns the previous session and
+// output channel so the caller can notify and close them.
+func (w *World) PrepareTakeover(name string) (*TelnetSession, chan string, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.players == nil {
+		return nil, nil, false
+	}
+	existing, ok := w.players[name]
+	if !ok || !existing.Alive {
+		return nil, nil, false
+	}
+
+	oldSession := existing.Session
+	oldOutput := existing.Output
+	existing.Session = nil
+	existing.Output = nil
+	existing.Alive = false
+	w.removePlayerOrderLocked(name)
+
+	return oldSession, oldOutput, true
+}
+
 // PlayerLocation describes the room occupied by a connected player.
 type PlayerLocation struct {
 	Name string
@@ -446,7 +485,9 @@ func (w *World) removePlayer(name string) {
 	if p, ok := w.players[name]; ok {
 		delete(w.players, name)
 		w.removePlayerOrderLocked(name)
-		close(p.Output)
+		if p.Output != nil {
+			close(p.Output)
+		}
 	}
 }
 

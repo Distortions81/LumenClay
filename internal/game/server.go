@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -127,6 +128,46 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager, dispatche
 		return
 	}
 
+	for {
+		if _, ok := world.ActivePlayer(username); !ok {
+			break
+		}
+
+		notice := "\r\n" + Style("Another session for "+HighlightName(username)+" is already active.", AnsiYellow)
+		_ = session.WriteString(Ansi(notice))
+		_ = session.WriteString(Ansi("\r\nTake over the existing session? (yes/no): "))
+		response, err := session.ReadLine()
+		if err != nil {
+			return
+		}
+		answer := strings.ToLower(Trim(response))
+		switch answer {
+		case "y", "yes":
+			oldSession, oldOutput, ok := world.PrepareTakeover(username)
+			if !ok {
+				continue
+			}
+			takeover := Ansi("\r\n" + Style("Your connection has been claimed from another location.", AnsiYellow) + "\r\n")
+			if oldOutput != nil {
+				select {
+				case oldOutput <- takeover:
+				default:
+				}
+				close(oldOutput)
+			}
+			if oldSession != nil {
+				_ = oldSession.Close()
+			}
+			_ = session.WriteString(Ansi("\r\n" + Style("Previous connection released.\r\n", AnsiGreen)))
+			break
+		case "n", "no":
+			_ = session.WriteString(Ansi("\r\n" + Style("Maintaining the existing session.\r\n", AnsiYellow)))
+			return
+		default:
+			_ = session.WriteString(Ansi("\r\n" + Style("Please respond with 'yes' or 'no'.", AnsiYellow)))
+		}
+	}
+
 	profile := accounts.Profile(username)
 	p, err := world.addPlayer(username, session, isAdmin, profile)
 	if err != nil {
@@ -173,6 +214,10 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager, dispatche
 			break
 		}
 		p.Output <- Prompt(p)
+	}
+
+	if p.Session != session {
+		return
 	}
 
 	farewell := "\r\n" + Style(logoffAtmosphere, AnsiMagenta, AnsiBold) + "\r\n"
