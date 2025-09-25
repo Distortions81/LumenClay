@@ -12,12 +12,15 @@ func sendChannelStatus(world *game.World, player *game.Player) {
 	var builder strings.Builder
 	builder.WriteString("\r\nChannel settings:\r\n")
 	for _, channel := range game.AllChannels() {
-		name := strings.ToUpper(string(channel))
+		label := strings.ToUpper(string(channel))
+		if alias := world.ChannelAlias(player, channel); alias != "" {
+			label = fmt.Sprintf("%s (%s)", label, strings.ToUpper(alias))
+		}
 		state := game.Style("OFF", game.AnsiYellow)
 		if statuses[channel] {
 			state = game.Style("ON", game.AnsiGreen, game.AnsiBold)
 		}
-		builder.WriteString(fmt.Sprintf("  %-10s %s\r\n", name, state))
+		builder.WriteString(fmt.Sprintf("  %-18s %s\r\n", label, state))
 	}
 	player.Output <- game.Ansi(builder.String())
 }

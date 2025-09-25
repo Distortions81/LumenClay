@@ -16,11 +16,19 @@ var Whisper = Define(Definition{
 		ctx.Player.Output <- game.Ansi(game.Style("\r\nWhisper what?", game.AnsiYellow))
 		return false
 	}
-	ctx.World.BroadcastToRoomChannel(ctx.Player.Room, game.Ansi(fmt.Sprintf("\r\n%s whispers: %s", game.HighlightName(ctx.Player.Name), msg)), ctx.Player, game.ChannelWhisper)
+	if ctx.World.ChannelMuted(ctx.Player, game.ChannelWhisper) {
+		ctx.Player.Output <- game.Ansi(game.Style("\r\nYou are muted on WHISPER.", game.AnsiYellow))
+		return false
+	}
+	broadcast := game.Ansi(fmt.Sprintf("\r\n%s whispers: %s", game.HighlightName(ctx.Player.Name), msg))
+	ctx.World.BroadcastToRoomChannel(ctx.Player.Room, broadcast, ctx.Player, game.ChannelWhisper)
 	nearby := ctx.World.AdjacentRooms(ctx.Player.Room)
 	if len(nearby) > 0 {
-		ctx.World.BroadcastToRoomsChannel(nearby, game.Ansi(fmt.Sprintf("\r\nYou hear %s whisper from nearby: %s", game.HighlightName(ctx.Player.Name), msg)), ctx.Player, game.ChannelWhisper)
+		echo := game.Ansi(fmt.Sprintf("\r\nYou hear %s whisper from nearby: %s", game.HighlightName(ctx.Player.Name), msg))
+		ctx.World.BroadcastToRoomsChannel(nearby, echo, ctx.Player, game.ChannelWhisper)
 	}
-	ctx.Player.Output <- game.Ansi(fmt.Sprintf("\r\n%s %s", game.Style("You whisper:", game.AnsiBold, game.AnsiYellow), msg))
+	self := game.Ansi(fmt.Sprintf("\r\n%s %s", game.Style("You whisper:", game.AnsiBold, game.AnsiYellow), msg))
+	ctx.Player.Output <- self
+	ctx.World.RecordPlayerChannelMessage(ctx.Player, game.ChannelWhisper, self)
 	return false
 })

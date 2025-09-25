@@ -68,9 +68,10 @@ func (a *AccountManager) loadPlayerProfile(name string) (PlayerProfile, bool) {
 		return PlayerProfile{}, false
 	}
 	type playerRecord struct {
-		Room     RoomID          `json:"room,omitempty"`
-		Home     RoomID          `json:"home,omitempty"`
-		Channels map[string]bool `json:"channels,omitempty"`
+		Room     RoomID            `json:"room,omitempty"`
+		Home     RoomID            `json:"home,omitempty"`
+		Channels map[string]bool   `json:"channels,omitempty"`
+		Aliases  map[string]string `json:"aliases,omitempty"`
 	}
 	var record playerRecord
 	if err := json.Unmarshal(data, &record); err != nil {
@@ -80,6 +81,7 @@ func (a *AccountManager) loadPlayerProfile(name string) (PlayerProfile, bool) {
 		Room:     record.Room,
 		Home:     record.Home,
 		Channels: decodeChannelSettings(record.Channels),
+		Aliases:  decodeChannelAliases(record.Aliases),
 	}
 	return profile, true
 }
@@ -96,14 +98,16 @@ func (a *AccountManager) savePlayerProfile(name string, profile PlayerProfile) e
 		return fmt.Errorf("create temp player file: %w", err)
 	}
 	type playerRecord struct {
-		Room     RoomID          `json:"room,omitempty"`
-		Home     RoomID          `json:"home,omitempty"`
-		Channels map[string]bool `json:"channels,omitempty"`
+		Room     RoomID            `json:"room,omitempty"`
+		Home     RoomID            `json:"home,omitempty"`
+		Channels map[string]bool   `json:"channels,omitempty"`
+		Aliases  map[string]string `json:"aliases,omitempty"`
 	}
 	record := playerRecord{
 		Room:     profile.Room,
 		Home:     profile.Home,
 		Channels: encodeChannelSettings(profile.Channels),
+		Aliases:  encodeChannelAliases(profile.Aliases),
 	}
 	enc := json.NewEncoder(tmp)
 	enc.SetIndent("", "  ")
@@ -255,6 +259,9 @@ func (a *AccountManager) Profile(name string) PlayerProfile {
 		}
 		if disk.Channels != nil {
 			profile.Channels = disk.Channels
+		}
+		if disk.Aliases != nil {
+			profile.Aliases = disk.Aliases
 		}
 	}
 	return profile

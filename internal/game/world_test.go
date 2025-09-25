@@ -265,6 +265,76 @@ func TestPlayerAllowCommandThrottles(t *testing.T) {
 	}
 }
 
+func TestWorldChannelHistoryAndAliasResolution(t *testing.T) {
+	world := NewWorldWithRooms(map[RoomID]*Room{StartRoom: {ID: StartRoom}})
+	player := &Player{
+		Name:     "Alice",
+		Room:     StartRoom,
+		Output:   make(chan string, 8),
+		Alive:    true,
+		Channels: DefaultChannelSettings(),
+	}
+	world.AddPlayerForTest(player)
+
+	msg := Ansi("greetings")
+	world.BroadcastToAllChannel(msg, nil, ChannelOOC)
+	entries := world.ChannelHistory(player, ChannelOOC, ChannelHistoryLimit)
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	if entries[0].Message != msg {
+		t.Fatalf("expected message %q, got %q", msg, entries[0].Message)
+	}
+
+	self := Ansi("self")
+	world.RecordPlayerChannelMessage(player, ChannelOOC, self)
+	entries = world.ChannelHistory(player, ChannelOOC, 2)
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(entries))
+	}
+	if entries[1].Message != self {
+		t.Fatalf("expected second entry %q, got %q", self, entries[1].Message)
+	}
+
+	limited := world.ChannelHistory(player, ChannelOOC, 1)
+	if len(limited) != 1 || limited[0].Message != self {
+		t.Fatalf("expected limited history to contain most recent message")
+	}
+
+	world.SetChannelAlias(player, ChannelOOC, "chat")
+	if alias := world.ChannelAlias(player, ChannelOOC); alias != "chat" {
+		t.Fatalf("alias = %q, want chat", alias)
+	}
+	resolved, ok := world.ResolveChannelToken(player, "chat")
+	if !ok || resolved != ChannelOOC {
+		t.Fatalf("ResolveChannelToken = (%v, %t), want (ChannelOOC, true)", resolved, ok)
+	}
+}
+
+func TestWorldChannelMute(t *testing.T) {
+	world := NewWorldWithRooms(map[RoomID]*Room{StartRoom: {ID: StartRoom}})
+	player := &Player{
+		Name:     "Alice",
+		Room:     StartRoom,
+		Output:   make(chan string, 8),
+		Alive:    true,
+		Channels: DefaultChannelSettings(),
+	}
+	world.AddPlayerForTest(player)
+
+	if world.ChannelMuted(player, ChannelSay) {
+		t.Fatalf("player should not begin muted")
+	}
+	world.SetChannelMute(player, ChannelSay, true)
+	if !world.ChannelMuted(player, ChannelSay) {
+		t.Fatalf("expected player to be muted")
+	}
+	world.SetChannelMute(player, ChannelSay, false)
+	if world.ChannelMuted(player, ChannelSay) {
+		t.Fatalf("expected player to be unmuted")
+	}
+}
+
 func TestAccountManagerProfilePersistence(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "accounts.json")
@@ -299,6 +369,9 @@ func TestAccountManagerProfilePersistence(t *testing.T) {
 			ChannelYell:    true,
 			ChannelOOC:     false,
 		},
+		Aliases: map[Channel]string{
+			ChannelWhisper: "quiet",
+		},
 	}
 	if err := manager.SaveProfile("alice", updated); err != nil {
 		t.Fatalf("SaveProfile: %v", err)
@@ -314,9 +387,10 @@ func TestAccountManagerProfilePersistence(t *testing.T) {
 		t.Fatalf("player file = %q, want %q", filepath.Base(playerPath), expectedFile)
 	}
 	var stored struct {
-		Room     string          `json:"room"`
-		Home     string          `json:"home"`
-		Channels map[string]bool `json:"channels"`
+		Room     string            `json:"room"`
+		Home     string            `json:"home"`
+		Channels map[string]bool   `json:"channels"`
+		Aliases  map[string]string `json:"aliases"`
 	}
 	data, err := os.ReadFile(playerPath)
 	if err != nil {
@@ -343,6 +417,14 @@ func TestAccountManagerProfilePersistence(t *testing.T) {
 			t.Fatalf("player file channel %s = %t, want %t", channel, got, want)
 		}
 	}
+	if len(stored.Aliases) != len(updated.Aliases) {
+		t.Fatalf("player file aliases = %v, want %v", stored.Aliases, updated.Aliases)
+	}
+	for channel, want := range updated.Aliases {
+		if got := stored.Aliases[string(channel)]; got != want {
+			t.Fatalf("player file alias %s = %q, want %q", channel, got, want)
+		}
+	}
 
 	profile = manager.Profile("alice")
 	if profile.Room != updated.Room {
@@ -354,6 +436,11 @@ func TestAccountManagerProfilePersistence(t *testing.T) {
 	for channel, want := range updated.Channels {
 		if got := profile.Channels[channel]; got != want {
 			t.Fatalf("channel %s: got %t, want %t", channel, got, want)
+		}
+	}
+	for channel, want := range updated.Aliases {
+		if got := profile.Aliases[channel]; got != want {
+			t.Fatalf("alias %s: got %q, want %q", channel, got, want)
 		}
 	}
 
@@ -371,6 +458,11 @@ func TestAccountManagerProfilePersistence(t *testing.T) {
 	for channel, want := range updated.Channels {
 		if got := profile.Channels[channel]; got != want {
 			t.Fatalf("persisted channel %s: got %t, want %t", channel, got, want)
+		}
+	}
+	for channel, want := range updated.Aliases {
+		if got := profile.Aliases[channel]; got != want {
+			t.Fatalf("persisted alias %s: got %q, want %q", channel, got, want)
 		}
 	}
 }
