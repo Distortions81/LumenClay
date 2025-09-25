@@ -8,7 +8,7 @@ import (
 const (
 	loginBanner = "╔══════════════════════════════════════╗\r\n" +
 		"║              LUMENCLAY               ║\r\n" +
-		"║   Sculpt your legend in living light  ║\r\n" +
+		"║  Sculpt your legend in living light  ║\r\n" +
 		"╚══════════════════════════════════════╝"
 	loginTagline    = "Where imagination takes shape in radiant hues."
 	copyrightNotice = "All rights reserved, Copyright 2025 Carl Frank Otto III"
