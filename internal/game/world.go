@@ -69,15 +69,17 @@ var (
 )
 
 type World struct {
-	mu          sync.RWMutex
-	rooms       map[RoomID]*Room
-	players     map[string]*Player
-	playerOrder []string
-	areasPath   string
-	accounts    *AccountManager
-	mail        *MailSystem
-	roomSources map[RoomID]string
-	builderPath string
+	mu                sync.RWMutex
+	rooms             map[RoomID]*Room
+	players           map[string]*Player
+	playerOrder       []string
+	areasPath         string
+	accounts          *AccountManager
+	mail              *MailSystem
+	roomSources       map[RoomID]string
+	builderPath       string
+	forceAllAdmin     bool
+	criticalOpsLocked bool
 }
 
 // ActivePlayer returns the currently connected player with the provided name.
@@ -150,6 +152,22 @@ func NewWorldWithRooms(rooms map[RoomID]*Room) *World {
 	}
 }
 
+// ConfigurePrivileges applies global administrative overrides.
+func (w *World) ConfigurePrivileges(forceAllAdmin, lockCriticalOps bool) {
+	w.mu.Lock()
+	w.forceAllAdmin = forceAllAdmin
+	w.criticalOpsLocked = lockCriticalOps
+	w.mu.Unlock()
+}
+
+// CriticalOperationsLocked reports whether reboot and shutdown commands are disabled.
+func (w *World) CriticalOperationsLocked() bool {
+	w.mu.RLock()
+	locked := w.criticalOpsLocked
+	w.mu.RUnlock()
+	return locked
+}
+
 // AttachAccountManager wires the account persistence layer into the world.
 func (w *World) AttachAccountManager(accounts *AccountManager) {
 	w.mu.Lock()
@@ -204,6 +222,9 @@ func (w *World) AddPlayerForTest(p *Player) {
 	}
 	now := time.Now()
 	p.JoinedAt = now
+	if w.forceAllAdmin {
+		p.IsAdmin = true
+	}
 	w.players[p.Name] = p
 	w.removePlayerOrderLocked(p.Name)
 	w.playerOrder = append(w.playerOrder, p.Name)
@@ -428,6 +449,9 @@ func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool, pro
 	aliases := cloneChannelAliases(profile.Aliases)
 
 	w.mu.Lock()
+	if w.forceAllAdmin {
+		isAdmin = true
+	}
 	now := time.Now()
 	if existing, ok := w.players[name]; ok {
 		if existing.Alive {
