@@ -73,6 +73,7 @@ type World struct {
 	players     map[string]*Player
 	areasPath   string
 	accounts    *AccountManager
+	mail        *MailSystem
 	roomSources map[RoomID]string
 	builderPath string
 }
@@ -111,6 +112,20 @@ func (w *World) AttachAccountManager(accounts *AccountManager) {
 	w.mu.Lock()
 	w.accounts = accounts
 	w.mu.Unlock()
+}
+
+// AttachMailSystem connects the persistent mail board storage to the world.
+func (w *World) AttachMailSystem(mail *MailSystem) {
+	w.mu.Lock()
+	w.mail = mail
+	w.mu.Unlock()
+}
+
+// MailSystem exposes the shared mail manager, when configured.
+func (w *World) MailSystem() *MailSystem {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.mail
 }
 
 // AccountStats exposes account metadata for the provided name.
