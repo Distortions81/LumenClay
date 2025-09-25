@@ -66,3 +66,38 @@ func TestCloneChannelSettings(t *testing.T) {
 		t.Fatalf("expected nil clone for nil input")
 	}
 }
+
+func TestChannelAliasesEncodingRoundTrip(t *testing.T) {
+	aliases := map[Channel]string{
+		ChannelSay:     "local",
+		ChannelWhisper: "quiet",
+	}
+	encoded := encodeChannelAliases(aliases)
+	decoded := decodeChannelAliases(encoded)
+	for channel, expected := range aliases {
+		if decoded[channel] != expected {
+			t.Fatalf("expected alias %q for %v, got %q", expected, channel, decoded[channel])
+		}
+	}
+	if decodeChannelAliases(nil) != nil {
+		t.Fatalf("expected nil aliases for nil input")
+	}
+}
+
+func TestCloneChannelAliases(t *testing.T) {
+	aliases := map[Channel]string{ChannelSay: "local", ChannelOOC: ""}
+	clone := cloneChannelAliases(aliases)
+	if clone == nil {
+		t.Fatalf("expected clone to drop empty alias but preserve non-empty")
+	}
+	if _, ok := clone[ChannelOOC]; ok {
+		t.Fatalf("empty alias should not be cloned")
+	}
+	clone[ChannelSay] = "room"
+	if aliases[ChannelSay] != "local" {
+		t.Fatalf("expected original alias to remain unchanged")
+	}
+	if cloneChannelAliases(nil) != nil {
+		t.Fatalf("expected nil clone for nil input")
+	}
+}

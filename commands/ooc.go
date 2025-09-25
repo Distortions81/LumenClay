@@ -16,8 +16,15 @@ var OOC = Define(Definition{
 		ctx.Player.Output <- game.Ansi(game.Style("\r\nOOC what?", game.AnsiYellow))
 		return false
 	}
+	if ctx.World.ChannelMuted(ctx.Player, game.ChannelOOC) {
+		ctx.Player.Output <- game.Ansi(game.Style("\r\nYou are muted on OOC.", game.AnsiYellow))
+		return false
+	}
 	tag := game.Style("[OOC]", game.AnsiMagenta, game.AnsiBold)
-	ctx.World.BroadcastToAllChannel(game.Ansi(fmt.Sprintf("\r\n%s %s: %s", tag, game.HighlightName(ctx.Player.Name), msg)), ctx.Player, game.ChannelOOC)
-	ctx.Player.Output <- game.Ansi(fmt.Sprintf("\r\n%s %s", game.Style("You (OOC):", game.AnsiBold, game.AnsiYellow), msg))
+	broadcast := game.Ansi(fmt.Sprintf("\r\n%s %s: %s", tag, game.HighlightName(ctx.Player.Name), msg))
+	ctx.World.BroadcastToAllChannel(broadcast, ctx.Player, game.ChannelOOC)
+	self := game.Ansi(fmt.Sprintf("\r\n%s %s", game.Style("You (OOC):", game.AnsiBold, game.AnsiYellow), msg))
+	ctx.Player.Output <- self
+	ctx.World.RecordPlayerChannelMessage(ctx.Player, game.ChannelOOC, self)
 	return false
 })

@@ -64,6 +64,23 @@ func cloneChannelSettings(settings map[Channel]bool) map[Channel]bool {
 	return clone
 }
 
+func cloneChannelAliases(aliases map[Channel]string) map[Channel]string {
+	if aliases == nil {
+		return nil
+	}
+	clone := make(map[Channel]string, len(aliases))
+	for channel, alias := range aliases {
+		if strings.TrimSpace(alias) == "" {
+			continue
+		}
+		clone[channel] = alias
+	}
+	if len(clone) == 0 {
+		return nil
+	}
+	return clone
+}
+
 func encodeChannelSettings(settings map[Channel]bool) map[string]bool {
 	if settings == nil {
 		return nil
@@ -71,6 +88,24 @@ func encodeChannelSettings(settings map[Channel]bool) map[string]bool {
 	encoded := make(map[string]bool, len(settings))
 	for channel, enabled := range settings {
 		encoded[string(channel)] = enabled
+	}
+	return encoded
+}
+
+func encodeChannelAliases(aliases map[Channel]string) map[string]string {
+	if aliases == nil {
+		return nil
+	}
+	encoded := make(map[string]string, len(aliases))
+	for channel, alias := range aliases {
+		trimmed := strings.TrimSpace(alias)
+		if trimmed == "" {
+			continue
+		}
+		encoded[string(channel)] = trimmed
+	}
+	if len(encoded) == 0 {
+		return nil
 	}
 	return encoded
 }
@@ -86,4 +121,26 @@ func decodeChannelSettings(raw map[string]bool) map[Channel]bool {
 		}
 	}
 	return settings
+}
+
+func decodeChannelAliases(raw map[string]string) map[Channel]string {
+	if len(raw) == 0 {
+		return nil
+	}
+	aliases := make(map[Channel]string, len(raw))
+	for name, alias := range raw {
+		channel, ok := channelLookup[name]
+		if !ok {
+			continue
+		}
+		trimmed := strings.TrimSpace(alias)
+		if trimmed == "" {
+			continue
+		}
+		aliases[channel] = trimmed
+	}
+	if len(aliases) == 0 {
+		return nil
+	}
+	return aliases
 }

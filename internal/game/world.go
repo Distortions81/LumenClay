@@ -425,6 +425,7 @@ func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool, pro
 	if channels == nil {
 		channels = defaultChannelSettings()
 	}
+	aliases := cloneChannelAliases(profile.Aliases)
 
 	w.mu.Lock()
 	now := time.Now()
@@ -441,41 +442,46 @@ func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool, pro
 		existing.IsAdmin = isAdmin
 		existing.Account = name
 		existing.Channels = cloneChannelSettings(channels)
+		existing.ChannelAliases = cloneChannelAliases(aliases)
 		existing.JoinedAt = now
 		w.removePlayerOrderLocked(name)
 		w.playerOrder = append(w.playerOrder, name)
 		persistChannels := cloneChannelSettings(existing.Channels)
+		persistAliases := cloneChannelAliases(existing.ChannelAliases)
 		account := existing.Account
 		currentRoom := existing.Room
 		currentHome := existing.Home
 		w.mu.Unlock()
-		w.persistPlayerState(account, currentRoom, currentHome, persistChannels)
+		w.persistPlayerState(account, currentRoom, currentHome, persistChannels, persistAliases)
 		return existing, nil
 	}
 
 	playerChannels := cloneChannelSettings(channels)
+	playerAliases := cloneChannelAliases(aliases)
 	p := &Player{
-		Name:      name,
-		Account:   name,
-		Session:   session,
-		Room:      room,
-		Home:      home,
-		Output:    make(chan string, 32),
-		Alive:     true,
-		IsAdmin:   isAdmin,
-		IsBuilder: false,
-		Channels:  cloneChannelSettings(playerChannels),
-		JoinedAt:  now,
+		Name:           name,
+		Account:        name,
+		Session:        session,
+		Room:           room,
+		Home:           home,
+		Output:         make(chan string, 32),
+		Alive:          true,
+		IsAdmin:        isAdmin,
+		IsBuilder:      false,
+		Channels:       cloneChannelSettings(playerChannels),
+		ChannelAliases: cloneChannelAliases(playerAliases),
+		JoinedAt:       now,
 	}
 	w.players[name] = p
 	w.removePlayerOrderLocked(name)
 	w.playerOrder = append(w.playerOrder, name)
 	persistChannels := cloneChannelSettings(playerChannels)
+	persistAliases := cloneChannelAliases(playerAliases)
 	account := p.Account
 	currentRoom := p.Room
 	currentHome := p.Home
 	w.mu.Unlock()
-	w.persistPlayerState(account, currentRoom, currentHome, persistChannels)
+	w.persistPlayerState(account, currentRoom, currentHome, persistChannels, persistAliases)
 	return p, nil
 }
 
@@ -544,10 +550,7 @@ func (w *World) BroadcastToRoomChannel(room RoomID, msg string, except *Player, 
 		if !target.channelEnabled(channel) {
 			continue
 		}
-		select {
-		case target.Output <- msg:
-		default:
-		}
+		w.deliverChannelMessage(target, msg, channel)
 	}
 }
 
@@ -571,10 +574,7 @@ func (w *World) BroadcastToRoomsChannel(rooms []RoomID, msg string, except *Play
 		if !target.channelEnabled(channel) {
 			continue
 		}
-		select {
-		case target.Output <- msg:
-		default:
-		}
+		w.deliverChannelMessage(target, msg, channel)
 	}
 }
 
@@ -588,10 +588,18 @@ func (w *World) BroadcastToAllChannel(msg string, except *Player, channel Channe
 		if !target.channelEnabled(channel) {
 			continue
 		}
-		select {
-		case target.Output <- msg:
-		default:
-		}
+		w.deliverChannelMessage(target, msg, channel)
+	}
+}
+
+func (w *World) deliverChannelMessage(target *Player, msg string, channel Channel) {
+	if target == nil {
+		return
+	}
+	target.rememberChannelMessage(channel, msg, time.Now())
+	select {
+	case target.Output <- msg:
+	default:
 	}
 }
 
@@ -625,11 +633,12 @@ func (w *World) SetChannel(p *Player, channel Channel, enabled bool) {
 	}
 	p.Channels[channel] = enabled
 	channels := cloneChannelSettings(p.Channels)
+	aliases := cloneChannelAliases(p.ChannelAliases)
 	account := p.Account
 	room := p.Room
 	home := p.Home
 	w.mu.Unlock()
-	w.persistPlayerState(account, room, home, channels)
+	w.persistPlayerState(account, room, home, channels, aliases)
 }
 
 func (w *World) ChannelStatuses(p *Player) map[Channel]bool {
@@ -642,7 +651,117 @@ func (w *World) ChannelStatuses(p *Player) map[Channel]bool {
 	return statuses
 }
 
-func (w *World) persistPlayerState(account string, room, home RoomID, channels map[Channel]bool) {
+// ChannelAlias returns the display alias configured for the specified channel.
+func (w *World) ChannelAlias(p *Player, channel Channel) string {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if stored, ok := w.players[p.Name]; !ok || stored != p {
+		return ""
+	}
+	return p.channelAlias(channel)
+}
+
+// ResolveChannelToken maps either a canonical channel name or a player-defined alias to a channel identifier.
+func (w *World) ResolveChannelToken(p *Player, token string) (Channel, bool) {
+	if channel, ok := ChannelFromString(token); ok {
+		return channel, true
+	}
+	normalized := strings.TrimSpace(token)
+	if normalized == "" {
+		return "", false
+	}
+	w.mu.RLock()
+	aliases := cloneChannelAliases(p.ChannelAliases)
+	w.mu.RUnlock()
+	for channel, alias := range aliases {
+		if strings.EqualFold(alias, normalized) {
+			return channel, true
+		}
+	}
+	return "", false
+}
+
+// SetChannelAlias updates the alias for a player's channel preference and persists the change.
+func (w *World) SetChannelAlias(p *Player, channel Channel, alias string) {
+	w.mu.Lock()
+	stored, ok := w.players[p.Name]
+	if !ok || stored != p {
+		w.mu.Unlock()
+		return
+	}
+	p.setChannelAlias(channel, alias)
+	channels := cloneChannelSettings(p.Channels)
+	aliases := cloneChannelAliases(p.ChannelAliases)
+	account := p.Account
+	room := p.Room
+	home := p.Home
+	w.mu.Unlock()
+	w.persistPlayerState(account, room, home, channels, aliases)
+}
+
+// ChannelHistory returns the recent message log for the provided channel.
+func (w *World) ChannelHistory(p *Player, channel Channel, limit int) []ChannelLogEntry {
+	w.mu.RLock()
+	stored, ok := w.players[p.Name]
+	w.mu.RUnlock()
+	if !ok || stored != p {
+		return nil
+	}
+	return p.snapshotChannelHistory(channel, limit)
+}
+
+// RecordPlayerChannelMessage adds a message to the player's personal channel history.
+func (w *World) RecordPlayerChannelMessage(p *Player, channel Channel, msg string) {
+	if p == nil {
+		return
+	}
+	w.mu.RLock()
+	stored, ok := w.players[p.Name]
+	w.mu.RUnlock()
+	if !ok || stored != p {
+		return
+	}
+	p.rememberChannelMessage(channel, msg, time.Now())
+}
+
+// ChannelMuted reports whether the player is currently muted on the specified channel.
+func (w *World) ChannelMuted(p *Player, channel Channel) bool {
+	w.mu.RLock()
+	stored, ok := w.players[p.Name]
+	w.mu.RUnlock()
+	if !ok || stored != p {
+		return false
+	}
+	return p.muted(channel)
+}
+
+// SetChannelMute toggles the mute flag for a player's channel usage.
+func (w *World) SetChannelMute(p *Player, channel Channel, muted bool) {
+	w.mu.Lock()
+	stored, ok := w.players[p.Name]
+	if !ok || stored != p {
+		w.mu.Unlock()
+		return
+	}
+	if p.MutedChannels == nil {
+		if !muted {
+			w.mu.Unlock()
+			return
+		}
+		p.MutedChannels = make(map[Channel]bool)
+	}
+	if muted {
+		p.MutedChannels[channel] = true
+	} else {
+		delete(p.MutedChannels, channel)
+		if len(p.MutedChannels) == 0 {
+			p.MutedChannels = nil
+		}
+	}
+	w.mu.Unlock()
+}
+
+func (w *World) persistPlayerState(account string, room, home RoomID, channels map[Channel]bool, aliases map[Channel]string) {
 	if account == "" {
 		return
 	}
@@ -650,7 +769,7 @@ func (w *World) persistPlayerState(account string, room, home RoomID, channels m
 	if accounts == nil {
 		return
 	}
-	profile := PlayerProfile{Room: room, Home: home, Channels: channels}
+	profile := PlayerProfile{Room: room, Home: home, Channels: channels, Aliases: aliases}
 	if err := accounts.SaveProfile(account, profile); err != nil {
 		fmt.Printf("failed to persist state for %s: %v\n", account, err)
 	}
@@ -666,8 +785,9 @@ func (w *World) PersistPlayer(p *Player) {
 	room := p.Room
 	home := p.Home
 	channels := cloneChannelSettings(p.Channels)
+	aliases := cloneChannelAliases(p.ChannelAliases)
 	w.mu.RUnlock()
-	w.persistPlayerState(account, room, home, channels)
+	w.persistPlayerState(account, room, home, channels, aliases)
 }
 
 func (w *World) RenamePlayer(p *Player, newName string) error {
@@ -875,10 +995,11 @@ func (w *World) Move(p *Player, dir string) (string, error) {
 	}
 	p.Room = next
 	channels := cloneChannelSettings(p.Channels)
+	aliases := cloneChannelAliases(p.ChannelAliases)
 	account := p.Account
 	home := p.Home
 	w.mu.Unlock()
-	w.persistPlayerState(account, next, home, channels)
+	w.persistPlayerState(account, next, home, channels, aliases)
 	return string(next), nil
 }
 
@@ -945,8 +1066,9 @@ func (w *World) MoveToRoom(p *Player, room RoomID) error {
 	account := p.Account
 	home := p.Home
 	channels := cloneChannelSettings(p.Channels)
+	aliases := cloneChannelAliases(p.ChannelAliases)
 	w.mu.Unlock()
-	w.persistPlayerState(account, room, home, channels)
+	w.persistPlayerState(account, room, home, channels, aliases)
 	return nil
 }
 
@@ -965,9 +1087,10 @@ func (w *World) SetHome(p *Player, room RoomID) error {
 	p.Home = room
 	account := p.Account
 	channels := cloneChannelSettings(p.Channels)
+	aliases := cloneChannelAliases(p.ChannelAliases)
 	currentRoom := p.Room
 	w.mu.Unlock()
-	w.persistPlayerState(account, currentRoom, room, channels)
+	w.persistPlayerState(account, currentRoom, room, channels, aliases)
 	return nil
 }
 

@@ -235,6 +235,76 @@ func TestDispatchChannelToggleDisablesSay(t *testing.T) {
 	}
 }
 
+func TestChannelAliasCommand(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"hall": {ID: "hall"},
+	})
+	player := newTestPlayer("Speaker", "hall")
+	world.AddPlayerForTest(player)
+
+	if done := Dispatch(world, player, "channel alias say local"); done {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	drainOutput(player.Output)
+	if alias := world.ChannelAlias(player, game.ChannelSay); alias != "local" {
+		t.Fatalf("alias = %q, want local", alias)
+	}
+}
+
+func TestHistoryCommandDisplaysMessages(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"hall": {ID: "hall"},
+	})
+	player := newTestPlayer("Speaker", "hall")
+	world.AddPlayerForTest(player)
+
+	message := game.Ansi("hello")
+	world.RecordPlayerChannelMessage(player, game.ChannelOOC, message)
+	drainOutput(player.Output)
+
+	if done := Dispatch(world, player, "history ooc"); done {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	output := strings.Join(drainOutput(player.Output), "\n")
+	if !strings.Contains(output, "Recent OOC messages") {
+		t.Fatalf("expected history header, got %q", output)
+	}
+	if !strings.Contains(output, "hello") {
+		t.Fatalf("expected recorded message in history output: %q", output)
+	}
+}
+
+func TestMuteCommandsToggleChannelAccess(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"hall": {ID: "hall"},
+	})
+	admin := newTestPlayer("Admin", "hall")
+	admin.IsAdmin = true
+	target := newTestPlayer("Target", "hall")
+	world.AddPlayerForTest(admin)
+	world.AddPlayerForTest(target)
+
+	if done := Dispatch(world, admin, "mute Target say"); done {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	drainOutput(admin.Output)
+	if len(drainOutput(target.Output)) == 0 {
+		t.Fatalf("expected target to receive mute notification")
+	}
+	if !world.ChannelMuted(target, game.ChannelSay) {
+		t.Fatalf("target should be muted on say")
+	}
+
+	if done := Dispatch(world, admin, "unmute Target say"); done {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	drainOutput(admin.Output)
+	drainOutput(target.Output)
+	if world.ChannelMuted(target, game.ChannelSay) {
+		t.Fatalf("target should be unmuted on say")
+	}
+}
+
 func TestSetHomeUpdatesRecallPoint(t *testing.T) {
 	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
 		"start": {
