@@ -106,6 +106,18 @@ func All() []*Command {
 	return out
 }
 
+// Find looks up a command by name or alias.
+func Find(name string) (*Command, bool) {
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	if normalized == "" {
+		return nil, false
+	}
+	registryMu.RLock()
+	cmd, ok := registry[normalized]
+	registryMu.RUnlock()
+	return cmd, ok
+}
+
 // Dispatch parses the input line, looks up the command, and executes it.
 func Dispatch(world *game.World, player *game.Player, line string) bool {
 	parts := strings.Fields(line)
@@ -122,6 +134,11 @@ func Dispatch(world *game.World, player *game.Player, line string) bool {
 	registryMu.RUnlock()
 	if cmd == nil {
 		player.Output <- game.Ansi("\r\nUnknown command. Type 'help'.")
+		return false
+	}
+
+	if world.CommandDisabled(cmd.Name) {
+		player.Output <- game.Ansi(game.Style("\r\nThat command is temporarily disabled.", game.AnsiYellow))
 		return false
 	}
 

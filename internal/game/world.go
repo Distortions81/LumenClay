@@ -80,6 +80,7 @@ type World struct {
 	builderPath       string
 	forceAllAdmin     bool
 	criticalOpsLocked bool
+	disabledCommands  map[string]bool
 }
 
 // ActivePlayer returns the currently connected player with the provided name.
@@ -158,6 +159,39 @@ func (w *World) ConfigurePrivileges(forceAllAdmin, lockCriticalOps bool) {
 	w.forceAllAdmin = forceAllAdmin
 	w.criticalOpsLocked = lockCriticalOps
 	w.mu.Unlock()
+}
+
+// SetCommandDisabled toggles whether a command is available to players.
+func (w *World) SetCommandDisabled(name string, disabled bool) {
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	if normalized == "" {
+		return
+	}
+	w.mu.Lock()
+	if disabled {
+		if w.disabledCommands == nil {
+			w.disabledCommands = make(map[string]bool)
+		}
+		w.disabledCommands[normalized] = true
+	} else if w.disabledCommands != nil {
+		delete(w.disabledCommands, normalized)
+		if len(w.disabledCommands) == 0 {
+			w.disabledCommands = nil
+		}
+	}
+	w.mu.Unlock()
+}
+
+// CommandDisabled reports whether the named command has been disabled.
+func (w *World) CommandDisabled(name string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	if normalized == "" {
+		return false
+	}
+	w.mu.RLock()
+	disabled := w.disabledCommands != nil && w.disabledCommands[normalized]
+	w.mu.RUnlock()
+	return disabled
 }
 
 // CriticalOperationsLocked reports whether reboot and shutdown commands are disabled.
