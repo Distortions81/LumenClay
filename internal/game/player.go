@@ -137,6 +137,26 @@ func (p *Player) muted(channel Channel) bool {
 	return p.MutedChannels[channel]
 }
 
+// WindowSize returns the most recent NAWS dimensions reported by the player's
+// telnet session, falling back to the standard 80x24 layout when unavailable.
+func (p *Player) WindowSize() (int, int) {
+	const (
+		defaultWidth  = 80
+		defaultHeight = 24
+	)
+	if p == nil || p.Session == nil {
+		return defaultWidth, defaultHeight
+	}
+	width, height := p.Session.Size()
+	if width <= 0 {
+		width = defaultWidth
+	}
+	if height <= 0 {
+		height = defaultHeight
+	}
+	return width, height
+}
+
 // ChannelLogEntry records a single message delivered via a chat channel.
 type ChannelLogEntry struct {
 	Timestamp time.Time

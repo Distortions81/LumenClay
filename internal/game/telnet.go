@@ -185,7 +185,7 @@ var (
 type TelnetSession struct {
 	conn   net.Conn
 	reader *bufio.Reader
-	mu     sync.Mutex
+	mu     sync.RWMutex
 	width  int
 	height int
 
@@ -427,10 +427,20 @@ func (s *TelnetSession) handleSubnegotiation() error {
 }
 
 func (s *TelnetSession) handleWindowSize(payload []byte) {
-	if len(payload) >= 4 {
-		s.width = int(payload[0])<<8 | int(payload[1])
-		s.height = int(payload[2])<<8 | int(payload[3])
+	if len(payload) < 4 {
+		return
 	}
+	width := int(payload[0])<<8 | int(payload[1])
+	height := int(payload[2])<<8 | int(payload[3])
+
+	s.mu.Lock()
+	if width > 0 {
+		s.width = width
+	}
+	if height > 0 {
+		s.height = height
+	}
+	s.mu.Unlock()
 }
 
 func (s *TelnetSession) handleTerminalType(payload []byte) {
@@ -652,10 +662,15 @@ func decodeWithCharmap(cm *charmap.Charmap, input []byte) string {
 func (s *TelnetSession) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.conn == nil {
+		return nil
+	}
 	return s.conn.Close()
 }
 
 func (s *TelnetSession) Size() (int, int) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.width, s.height
 }
 

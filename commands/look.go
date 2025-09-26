@@ -19,6 +19,8 @@ var Look = Define(Definition{
 		return false
 	}
 
+	width, _ := ctx.Player.WindowSize()
+
 	target := strings.TrimSpace(ctx.Arg)
 	if target != "" {
 		if npc, found := ctx.World.FindRoomNPC(ctx.Player.Room, target); found {
@@ -34,7 +36,11 @@ var Look = Define(Definition{
 			if desc == "" {
 				desc = "You see nothing special."
 			}
-			ctx.Player.Output <- game.Ansi(fmt.Sprintf("\r\nYou study %s. %s", game.HighlightItemName(item.Name), desc))
+			ctx.Player.Output <- game.Ansi(fmt.Sprintf(
+				"\r\nYou study %s. %s",
+				game.HighlightItemName(item.Name),
+				game.WrapText(desc, width),
+			))
 			return false
 		}
 		if dir, dest, found := ctx.World.ResolveExit(ctx.Player.Room, target); found {
@@ -43,7 +49,12 @@ var Look = Define(Definition{
 				title := game.Style(next.Title, game.AnsiBold, game.AnsiCyan)
 				desc := strings.TrimSpace(next.Description)
 				if desc != "" {
-					message = fmt.Sprintf("\r\nLooking %s you glimpse %s. %s", dir, title, desc)
+					message = fmt.Sprintf(
+						"\r\nLooking %s you glimpse %s. %s",
+						dir,
+						title,
+						game.WrapText(desc, width),
+					)
 				} else {
 					message = fmt.Sprintf("\r\nLooking %s you glimpse %s.", dir, title)
 				}
@@ -56,7 +67,7 @@ var Look = Define(Definition{
 	}
 
 	title := game.Style(room.Title, game.AnsiBold, game.AnsiCyan)
-	desc := game.Style(room.Description, game.AnsiItalic, game.AnsiDim)
+	desc := game.Style(game.WrapText(room.Description, width), game.AnsiItalic, game.AnsiDim)
 	exits := game.Style(game.ExitList(room), game.AnsiGreen)
 	ctx.Player.Output <- game.Ansi(fmt.Sprintf("\r\n%s\r\n%s\r\nExits: %s", title, desc, exits))
 
