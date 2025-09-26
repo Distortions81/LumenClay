@@ -4,20 +4,22 @@
     {
       "id": "start",
       "title": "Luminal Confluence",
-      "description": "The atrium blooms like a kiln-flower in mid-ignite, petals of fired clay suspended in the air by threads of slow-moving light. Translucent veins of azure lumen pulse beneath your feet, warming the inlaid mosaic that charts the four surrounding districts. Pillared arcades shimmer to the north, east, south, and west—each arch banded with glyphs that name the library, workshop, garden, and market beyond. Overhead, a lattice of glassleaf panels refracts gentle daylight into motes that drift like curious fireflies, while a low, resonant hum rises from the vents of an unseen crucible below.",
+      "description": "The atrium blooms like a kiln-flower in mid-ignite, petals of fired clay suspended in the air by threads of slow-moving light. Translucent veins of azure lumen pulse beneath your feet, warming the inlaid mosaic that charts the neighboring districts and the vaulted chambers hidden below. Pillared arcades shimmer to the north, east, south, and west—each arch banded with glyphs that name the library, workshop, garden, and market beyond. Overhead, a lattice of glassleaf panels refracts daylight into motes that drift like curious fireflies while drifting chords from unseen chimes keep time with the heartbeats of the city.",
       "exits": {
+        "d": "start_reservoir",
         "e": "workshop",
         "n": "library",
+        "ne": "start_colonnade",
+        "nw": "start_archive",
         "s": "garden",
-        "w": "market",
+        "se": "start_transitarium",
         "u": "start_overlook",
-        "d": "start_reservoir",
-        "nw": "start_archive"
+        "w": "market"
       },
       "items": [
         {
           "name": "Chorale Crucible",
-          "description": "A waist-high vessel of porous clay sings a soft three-note chord whenever someone steps near, sending ripples of light racing through the floor mosaic."
+          "description": "A waist-high vessel of porous clay sings a soft triad whenever someone steps near, sending ripples of light racing through the floor mosaic."
         },
         {
           "name": "Lumen Petals",
@@ -26,12 +28,20 @@
         {
           "name": "Compass of Embers",
           "description": "This bronze compass bears four glowing arrows that brighten when pointed toward the districts they represent, inviting exploration."
+        },
+        {
+          "name": "Mnemonic Thread",
+          "description": "A ribbon of woven light that loops around your wrist and records every doorway you pass with a gentle pulse."
         }
       ],
       "npcs": [
         {
           "name": "Glazecaller Ilyss",
           "auto_greet": "Welcome, shaper of light. Let the clay remember your touch and the city will remember your name."
+        },
+        {
+          "name": "Wayfinder Ghal",
+          "auto_greet": "New paths have opened today. I can hum their resonances for you if you promise to return with a story."
         }
       ]
     },
@@ -41,13 +51,18 @@
       "description": "A sloped ramp of vitrified clay climbs to a balcony ringed with prism spires. From here the entire atrium gleams like a living kiln, its shifting hues mirrored in a suspended basin of liquid glass above. Hushed voices drift from artisans tracing designs into hanging light-sheets, their patterns forming new guild sigils in mid-air.",
       "exits": {
         "d": "start",
-        "ne": "start_gallery",
-        "n": "observatory_plaza"
+        "e": "start_colonnade",
+        "n": "observatory_plaza",
+        "ne": "start_gallery"
       },
       "items": [
         {
           "name": "Harmonic Stylus",
           "description": "A slim rod of polished obsidian that, when waved, leaves a lingering ribbon of color that slowly twists back into the ambient glow."
+        },
+        {
+          "name": "Glassleaf Monocle",
+          "description": "Looking through the monocle reveals drifting annotations that identify every artisan visible from the balcony."
         }
       ]
     },
@@ -56,28 +71,45 @@
       "title": "Gallery of Fired Memories",
       "description": "Shelves carved directly from the wall cradle amphorae and tiles infused with bioluminescent glaze. Each piece flickers to life as you pass, reenacting the memory of its creation: hands shaping clay, sparks leaping, rain hissing against hot stone. The air tastes faintly of mineral rain and sweet kiln smoke.",
       "exits": {
-        "sw": "start_overlook",
-        "s": "start"
+        "e": "start_cartographers_post",
+        "n": "start_radiant_gallery",
+        "s": "start",
+        "sw": "start_overlook"
       },
       "items": [
         {
           "name": "Memory Tile",
           "description": "A warm tile that replays a vivid scene of apprentices rescuing a collapsed sculpture by weaving beams of light to hold it upright."
+        },
+        {
+          "name": "Kilnshard Pendant",
+          "description": "The pendant glows whenever it hears a tale it has not yet stored, eager to collect fresh triumphs."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Curator Silma",
+          "auto_greet": "Careful where you look—the memories might ask you to finish what they began."
         }
       ]
     },
     {
       "id": "start_reservoir",
       "title": "Lumen Reservoir",
-      "description": "Descending beneath the atrium, you find a vaulted chamber where canals of liquid light circulate through terraced pools. Clay golems in various states of completion rest upon turning plinths, their hollows filling with glow as the reservoirs cycle. The gentle churn of lumen through porous stone creates a steady heartbeat for the city above.",
+      "description": "Descending beneath the atrium, you find a vaulted chamber where canals of liquid light circulate through terraced pools. Clay golems in various states of completion rest upon turning plinths, their hollows filling with glow as the reservoirs cycle. The gentle churn of lumen through porous stone creates a steady heartbeat for the city above, echoing through the spiral conduits that carry power outward.",
       "exits": {
-        "u": "start",
-        "ne": "start_archive"
+        "e": "start_resonance_walk",
+        "ne": "start_archive",
+        "u": "start"
       },
       "items": [
         {
           "name": "Resonant Ladle",
           "description": "A heavy ladle whose bowl traps a sphere of luminescence; when poured, it paints temporary sigils across the pool's surface."
+        },
+        {
+          "name": "Pulse Gauge",
+          "description": "This translucent tool measures the rhythm of the lumen tides and hums warnings when the flow stutters."
         }
       ],
       "npcs": [
@@ -93,6 +125,10 @@
               "description": "A fist-sized crystal humming with the reservoir's tempered light."
             }
           ]
+        },
+        {
+          "name": "Flowchart Acolyte",
+          "auto_greet": "Mind the conduits—the lumen remembers every hand that guides it."
         }
       ]
     },
@@ -101,6 +137,8 @@
       "title": "Glyphwork Archive",
       "description": "Narrow aisles wind between towering stacks of clay tablets, each etched with radiant grooves that drift like ink when read aloud. Whispered annotations from distant archivists answer your curiosity, their voices traveling along silver threads stretched between the shelves. An alcove contains a drafting table strewn with unfinished scripts awaiting new histories.",
       "exits": {
+        "e": "start_lyricwell",
+        "n": "start_chronicle",
         "se": "start",
         "sw": "start_reservoir"
       },
@@ -108,12 +146,238 @@
         {
           "name": "Scriptor's Prism",
           "description": "A multifaceted prism that reveals hidden notes when its light is cast through the glyphs on any tablet."
+        },
+        {
+          "name": "Borrowed Promise",
+          "description": "A clay seal that, once broken, reminds the holder of an oath pledged somewhere else in the city."
         }
       ],
       "npcs": [
         {
           "name": "Archivist Thalen",
           "auto_greet": "Careful with the tablets—every line is a promise the clay agreed to keep."
+        }
+      ]
+    },
+    {
+      "id": "start_colonnade",
+      "title": "Colonnade of Whispered Steps",
+      "description": "A crescent of slender pillars fans out from the atrium, their surfaces inlaid with tessellated mirrors that echo footsteps a heartbeat after they are taken. Lanterns shaped like folded origami brighten in sequence ahead of any traveler, sketching a path toward distant wings of the city.",
+      "exits": {
+        "e": "library",
+        "n": "start_lyricwell",
+        "sw": "start",
+        "w": "start_overlook"
+      },
+      "items": [
+        {
+          "name": "Echo Lantern",
+          "description": "A palm-sized lamp that repeats a soft chime for each person currently walking the colonnade."
+        }
+      ]
+    },
+    {
+      "id": "start_lyricwell",
+      "title": "Lyricwell Rotunda",
+      "description": "An artesian spring of liquid light wells up through a circular dais, its surface rippling with notation that drifts off to ornament the walls. Choir stalls carved into the surrounding pillars resonate with whispered melodies, teaching visitors to harmonize with the city's pulse.",
+      "exits": {
+        "e": "start_resonance_walk",
+        "s": "start_colonnade",
+        "w": "start_archive"
+      },
+      "items": [
+        {
+          "name": "Harmonic Draught",
+          "description": "A crystal vial filled with liquid song; one sip allows you to mimic any melody you have heard."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Cantor Myrene",
+          "auto_greet": "Sing with the spring and it will sing the future back to you."
+        }
+      ]
+    },
+    {
+      "id": "start_resonance_walk",
+      "title": "Resonance Walk",
+      "description": "Parallel channels of luminant water braid beneath a suspended walkway of translucent clay. Every stride sends harmonics along the rails, awakening murals that illustrate the city's hidden aquifers.",
+      "exits": {
+        "e": "start_planisphere",
+        "n": "start_harmonic_chamber",
+        "s": "start_reservoir",
+        "w": "start_lyricwell"
+      },
+      "items": [
+        {
+          "name": "Surveyor's Anklet",
+          "description": "Woven from copper wire and kiln string, it vibrates when an uncharted tunnel lies nearby."
+        }
+      ]
+    },
+    {
+      "id": "start_planisphere",
+      "title": "Planisphere Promenade",
+      "description": "A circular platform is inlaid with concentric rings that rotate beneath your boots, aligning miniature constellations with the district sigils engraved along the balustrade. Each ring pulses with light when an adjoining pathway is explored, recording your travels in gentle luminescence.",
+      "exits": {
+        "n": "start_celestium",
+        "s": "start_transitarium",
+        "w": "start_resonance_walk"
+      },
+      "items": [
+        {
+          "name": "Rotational Orrery",
+          "description": "A handheld device whose arms swivel to point toward any room you have already visited today."
+        }
+      ]
+    },
+    {
+      "id": "start_harmonic_chamber",
+      "title": "Harmonic Chamber",
+      "description": "A vaulted hall hung with ceramic bells that sway in invisible breezes. Crossing the chamber sends shivers of sound spiraling upward, where sculpted resonators capture and store the harmonies as shimmering droplets.",
+      "exits": {
+        "e": "start_celestium",
+        "s": "start_resonance_walk",
+        "w": "start_chronicle"
+      },
+      "items": [
+        {
+          "name": "Tonekeeper Bell",
+          "description": "A palm-sized bell that retains the last harmony it heard; when rung it replays the captured chord perfectly."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Conductor Vhail",
+          "auto_greet": "Hold the rhythm steady and the city will breathe easier."
+        }
+      ]
+    },
+    {
+      "id": "start_celestium",
+      "title": "Celestium Vault",
+      "description": "Crystalline ribs arch overhead to form a luminous dome mapped with constellations. Threads of light descend to touch the floor, weaving temporary models of routes between the districts and the heavens beyond the observatory.",
+      "exits": {
+        "e": "start_aurora_balcony",
+        "s": "start_planisphere",
+        "w": "start_harmonic_chamber"
+      },
+      "items": [
+        {
+          "name": "Stellar Loom",
+          "description": "A portable loom that spins comet-light into cords sturdy enough to anchor floating walkways."
+        }
+      ]
+    },
+    {
+      "id": "start_aurora_balcony",
+      "title": "Aurora Balcony",
+      "description": "An open balcony catches the upper winds, its railing adorned with ribboned lenses that tint the horizon with auroral hues. Far below, the districts glitter in miniature while the observatory's silent instruments pivot in greeting.",
+      "exits": {
+        "e": "observatory_signal_gallery",
+        "s": "start_radiant_gallery",
+        "w": "start_celestium"
+      },
+      "items": [
+        {
+          "name": "Skylens Garland",
+          "description": "Garlands of lens-petals absorb starlight during the night and release it as soft illumination at dawn."
+        }
+      ]
+    },
+    {
+      "id": "start_transitarium",
+      "title": "Transitarium",
+      "description": "Circular rails inlaid within the floor rotate entire sections of wall, revealing portals keyed to workshops, markets, and botanical sanctuaries. Mechanical guides rest in alcoves until summoned, their clay shells painted with maps that update themselves with each new discovery.",
+      "exits": {
+        "e": "start_cartographers_post",
+        "n": "start_planisphere",
+        "s": "start_glassway",
+        "w": "start"
+      },
+      "items": [
+        {
+          "name": "Route Codex",
+          "description": "A hexagonal book whose pages shuffle to display the optimal route between any two known rooms."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Porter Automaton",
+          "auto_greet": "Please state your destination, and I shall align the doors accordingly."
+        }
+      ]
+    },
+    {
+      "id": "start_cartographers_post",
+      "title": "Cartographer's Post",
+      "description": "Tables of suspended parchment drift at waist height, each inscribed with cartographic glyphs that redraw themselves as new explorations occur. Brass arms fitted with ink reservoirs trace glowing lines, stitching the districts together.",
+      "exits": {
+        "e": "start_glassway",
+        "n": "start_gallery",
+        "sw": "market",
+        "w": "start_transitarium"
+      },
+      "items": [
+        {
+          "name": "Ink Spheroid",
+          "description": "A levitating orb of luminescent ink that can be coaxed into revealing hidden passageways on any map."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Survey-Mage Pell",
+          "auto_greet": "If you chart a new route, leave a signature—our maps enjoy knowing who taught them to grow."
+        }
+      ]
+    },
+    {
+      "id": "start_glassway",
+      "title": "Glassway Causeway",
+      "description": "A translucent bridge arcs toward the outlying districts, its underside alive with darting lightfish that chase one another in looping patterns. Footsteps set the railings aglow, broadcasting the traveler's direction toward the market and the garden.",
+      "exits": {
+        "e": "market_prism_gate",
+        "n": "start_transitarium",
+        "s": "mistway",
+        "w": "start_cartographers_post"
+      },
+      "items": [
+        {
+          "name": "Bridge Baton",
+          "description": "Tap the baton on the railing to summon a temporary shield of glassleaf panels against inclement weather."
+        }
+      ]
+    },
+    {
+      "id": "start_chronicle",
+      "title": "Chronicle Scriptorium",
+      "description": "Banks of suspended scrolls slowly unroll and rewrite themselves as the city's story grows. Inked silhouettes replay the triumphs and missteps of travelers, ensuring the atrium never forgets the lessons of its guests.",
+      "exits": {
+        "e": "start_harmonic_chamber",
+        "n": "start_radiant_gallery",
+        "s": "start_archive"
+      },
+      "items": [
+        {
+          "name": "Annals Ribbon",
+          "description": "A ribbon of flexible clay that imprints a summary of your accomplishments when warmed in your hands."
+        }
+      ]
+    },
+    {
+      "id": "start_radiant_gallery",
+      "title": "Radiant Gallery",
+      "description": "Sculptures of translucent porcelain capture frozen moments of the aurora, each piece emitting a low hum that harmonizes with its neighbors. Light spills through etched louvers overhead, bathing the room in watercolor hues.",
+      "exits": {
+        "e": "start_celestium",
+        "s": "start_chronicle",
+        "w": "start_gallery",
+        "n": "start_aurora_balcony"
+      },
+      "items": [
+        {
+          "name": "Auroral Chisel",
+          "description": "This tool carves light directly from the air, shaping it into temporary sculptures that fade with the dawn."
         }
       ]
     }

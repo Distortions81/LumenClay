@@ -4,11 +4,12 @@
     {
       "id": "workshop",
       "title": "Crackle Workshop",
-      "description": "Benches, tools, and half-built contraptions hum with patient possibility.",
+      "description": "Benches, tools, and half-built contraptions hum with patient possibility. Overhead pulleys shuttle trays of glowing components while chalk-sketched diagrams redraw themselves whenever a better idea sparks.",
       "exits": {
         "e": "forge",
         "n": "gearworks",
         "s": "atelier_dormitory",
+        "se": "prototype_gallery",
         "u": "loft",
         "w": "start"
       },
@@ -20,99 +21,337 @@
         {
           "name": "Soldering Wand",
           "description": "Its tip glows when it senses an unfinished invention."
+        },
+        {
+          "name": "Schematic Slate",
+          "description": "Sketch an idea and the slate projects a three-dimensional preview above the table."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Foreman Rel",
+          "auto_greet": "Bring me a problem and I'll loan you the right solution, or at least the right wrench."
         }
       ]
     },
     {
       "id": "gearworks",
       "title": "Gearworks Atrium",
-      "description": "Floor-to-ceiling cogs lazily rotate in polite applause for every tinkerer who passes by.",
+      "description": "Floor-to-ceiling cogs lazily rotate in polite applause for every tinkerer who passes by. Copper pistons keep time with a steady beat that syncs the entire complex.",
       "exits": {
         "e": "cogspring",
         "s": "workshop",
+        "u": "gearworks_mezzanine",
         "w": "clocktower"
-      }
+      },
+      "items": [
+        {
+          "name": "Calibration Cog",
+          "description": "A palm-sized cog that adjusts itself to mesh with any gear you press it against."
+        }
+      ]
+    },
+    {
+      "id": "gearworks_mezzanine",
+      "title": "Gearworks Mezzanine",
+      "description": "A suspended balcony offers a bird's-eye view of the atrium. Suspended gauges track tension in every chain, whispering warnings before jams can occur.",
+      "exits": {
+        "d": "gearworks",
+        "e": "calibration_bridge"
+      },
+      "items": [
+        {
+          "name": "Overseer Lens",
+          "description": "Looking through the lens highlights any component overdue for maintenance."
+        }
+      ]
+    },
+    {
+      "id": "calibration_bridge",
+      "title": "Calibration Bridge",
+      "description": "A narrow catwalk spans the open air between the workshop tower and the market clocktower. Resonant tuning forks hang from the railings, singing whenever the bridge detects misaligned gears nearby.",
+      "exits": {
+        "e": "clocktower_belfry",
+        "w": "gearworks_mezzanine"
+      },
+      "items": [
+        {
+          "name": "Balancing Harness",
+          "description": "Strap it on to steady your footing while you work above the spinning gears."
+        }
+      ]
     },
     {
       "id": "cogspring",
       "title": "Cogspring Well",
-      "description": "A vertical fountain of gears trickles oil like water, powering hidden machines below.",
+      "description": "A vertical fountain of gears trickles oil like water, powering hidden machines below. Steam wisps carry the scent of ozone and hot iron.",
       "exits": {
         "d": "submerged_lab",
+        "e": "resonant_press",
         "w": "gearworks"
-      }
+      },
+      "items": [
+        {
+          "name": "Oilweave Cloth",
+          "description": "Wipe down any mechanism and the cloth records its last calibration settings."
+        }
+      ]
+    },
+    {
+      "id": "resonant_press",
+      "title": "Resonant Press",
+      "description": "Massive plates thrum with harmonic energy, imprinting circuits into clay with perfect precision. Each press stroke leaves a faint chord hanging in the air.",
+      "exits": {
+        "d": "pressure_lounge",
+        "s": "alloy_gallery",
+        "w": "cogspring"
+      },
+      "items": [
+        {
+          "name": "Tuning Die",
+          "description": "Slip the die into the press to change the frequency of the imprint it leaves behind."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Pressmaster Huun",
+          "auto_greet": "Keep your heartbeat steady—the press prefers calm partners."
+        }
+      ]
     },
     {
       "id": "submerged_lab",
       "title": "Submerged Laboratory",
-      "description": "Aquarium walls reveal experiments performed in bubbles, with fish wearing monocles taking notes.",
+      "description": "Aquarium walls reveal experiments performed in bubbles, with fish wearing monocles taking notes. Mechanical quills drift like seaweed, scribbling formulas in waterproof ink.",
       "exits": {
+        "s": "pressure_lounge",
         "u": "cogspring"
-      }
+      },
+      "items": [
+        {
+          "name": "Bubble Torch",
+          "description": "Ignite it underwater to cast a dry bubble around delicate equipment."
+        }
+      ]
+    },
+    {
+      "id": "pressure_lounge",
+      "title": "Pressure Lounge",
+      "description": "Padded alcoves provide respite for divers acclimating to different depths. Brass gauges glow softly as they equalize air and pressure for anyone emerging from the lower labs.",
+      "exits": {
+        "n": "submerged_lab",
+        "s": "ember_grotto",
+        "u": "resonant_press"
+      },
+      "items": [
+        {
+          "name": "Depth Bracelet",
+          "description": "Tiny runes adjust to your pulse, warning you when pressure changes too quickly."
+        }
+      ]
     },
     {
       "id": "forge",
       "title": "Volcanic Forge",
-      "description": "Anvils glow a gentle cherry red while sparks sketch blue afterimages in the air.",
+      "description": "Anvils glow a gentle cherry red while sparks sketch blue afterimages in the air. Automated bellows breathe in rhythm with a deep subterranean thrum.",
       "exits": {
-        "e": "smoke_garden",
+        "e": "alloy_gallery",
         "n": "heat_cradle",
+        "s": "inventors_forum",
         "w": "workshop"
-      }
+      },
+      "items": [
+        {
+          "name": "Molten Crucible",
+          "description": "The crucible remembers the melting point of any metal you pour within."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Forgewright Tessa",
+          "auto_greet": "Mind the sparks—they like curious pockets."
+        }
+      ]
     },
     {
       "id": "heat_cradle",
       "title": "Heat Cradle",
-      "description": "A suspended iron hammock radiates cozy warmth, perfect for incubating daring ideas.",
+      "description": "A suspended iron hammock radiates cozy warmth, perfect for incubating daring ideas. Racks of half-finished prototypes sway gently in the thermal currents.",
       "exits": {
+        "e": "slag_terrace",
         "s": "forge"
-      }
+      },
+      "items": [
+        {
+          "name": "Thermal Draft",
+          "description": "A scroll that releases a programmable wave of heat to temper delicate alloys."
+        }
+      ]
+    },
+    {
+      "id": "alloy_gallery",
+      "title": "Alloy Gallery",
+      "description": "Display cases showcase plates of experimental metals, each etched with their unique resonant frequency. Holographic annotations flicker above every sample.",
+      "exits": {
+        "e": "slag_terrace",
+        "n": "resonant_press",
+        "w": "forge"
+      },
+      "items": [
+        {
+          "name": "Alloy Ledger",
+          "description": "A ledger that records the blend of metals used in any item you examine here."
+        }
+      ]
+    },
+    {
+      "id": "slag_terrace",
+      "title": "Slag Terrace",
+      "description": "Molten slag pours in glittering ribbons into cooling troughs that sculpt themselves into bricks. The terrace overlooks the smoke garden below, its railings hot to the touch.",
+      "exits": {
+        "n": "heat_cradle",
+        "s": "smoke_garden",
+        "w": "alloy_gallery"
+      },
+      "items": [
+        {
+          "name": "Cooling Tongs",
+          "description": "These tongs hum softly when slag has cooled enough to handle safely."
+        }
+      ]
     },
     {
       "id": "smoke_garden",
       "title": "Smoke Garden",
-      "description": "Charcoal hedges puff scented rings that drift toward a cavern mouth below.",
+      "description": "Charcoal hedges puff scented rings that drift toward a cavern mouth below. Emberlit lanterns hang from iron trellises, forming constellations of workshop legends.",
       "exits": {
+        "n": "slag_terrace",
         "s": "ember_grotto",
         "w": "forge"
-      }
+      },
+      "items": [
+        {
+          "name": "Scented Char",
+          "description": "Crush it to release smoke that repels sparks from raw wood or cloth."
+        }
+      ]
     },
     {
       "id": "ember_grotto",
       "title": "Ember Grotto",
-      "description": "Ashen stalactites glow from within, breathing out embers that never quite touch the floor.",
+      "description": "Ashen stalactites glow from within, breathing out embers that never quite touch the floor. The air tastes faintly of spice and iron.",
       "exits": {
+        "e": "pressure_lounge",
         "n": "smoke_garden",
         "u": "root_caves"
-      }
+      },
+      "items": [
+        {
+          "name": "Smolder Stone",
+          "description": "A warm stone that reignites banked coals with a gentle squeeze."
+        }
+      ]
     },
     {
       "id": "atelier_dormitory",
       "title": "Atelier Dormitory",
-      "description": "Hammocks stitched from blueprints sway gently, each muttering half-finished inventions in its sleep.",
+      "description": "Hammocks stitched from blueprints sway gently, each muttering half-finished inventions in its sleep. Tool lockers double as nightstands, softly glowing when their owners dream of solutions.",
       "exits": {
         "e": "ink_garden",
         "n": "workshop",
+        "s": "prototype_gallery",
         "w": "lantern_row"
-      }
+      },
+      "items": [
+        {
+          "name": "Blueprint Blanket",
+          "description": "Wrap up in it and wake with a rough schematic of whatever you were puzzling over."
+        }
+      ]
+    },
+    {
+      "id": "prototype_gallery",
+      "title": "Prototype Gallery",
+      "description": "A hall of experimental devices spins slowly on suspended turntables. Each prototype projects a short demonstration when approached, eager for field testing.",
+      "exits": {
+        "e": "inventors_forum",
+        "n": "atelier_dormitory",
+        "w": "workshop"
+      },
+      "items": [
+        {
+          "name": "Trial Token",
+          "description": "Claiming a token grants temporary access to test any prototype in the gallery."
+        }
+      ]
+    },
+    {
+      "id": "inventors_forum",
+      "title": "Inventors' Forum",
+      "description": "Tiered seating surrounds a central dais where engineers pitch their boldest plans. Debate sigils flare gently, ensuring every voice is heard in orderly rotation.",
+      "exits": {
+        "n": "forge",
+        "s": "aerial_lab",
+        "w": "prototype_gallery"
+      },
+      "items": [
+        {
+          "name": "Debate Stylus",
+          "description": "Touch it to the dais and your idea becomes a shimmering schematic for all to inspect."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Moderator Fex",
+          "auto_greet": "Present your case succinctly—the queue of bright minds is never short."
+        }
+      ]
     },
     {
       "id": "loft",
       "title": "Windborne Loft",
-      "description": "Gauzy curtains billow inward, revealing a balcony stocked with spare wings and parachutes.",
+      "description": "Gauzy curtains billow inward, revealing a balcony stocked with spare wings and parachutes. Draft charts line the walls, mapping the safest glide paths between districts.",
       "exits": {
         "d": "workshop",
         "e": "wind_tunnel",
         "n": "balloon_roost"
-      }
+      },
+      "items": [
+        {
+          "name": "Glider Rig",
+          "description": "Folded canvas wings that deploy with a tug, perfect for short descents."
+        }
+      ]
     },
     {
       "id": "wind_tunnel",
       "title": "Wind Tuning Tunnel",
-      "description": "Pipes shift diameter with each step, harmonizing breezes into melodies of encouragement.",
+      "description": "Pipes shift diameter with each step, harmonizing breezes into melodies of encouragement. Panels along the wall slide open to test airflow on delicate inventions.",
       "exits": {
+        "e": "aerial_lab",
         "w": "loft"
-      }
+      },
+      "items": [
+        {
+          "name": "Resonant Vane",
+          "description": "Attach it to a prototype and it sings when airflow hits an optimal balance."
+        }
+      ]
+    },
+    {
+      "id": "aerial_lab",
+      "title": "Aerial Dynamics Lab",
+      "description": "Suspended platforms rise and fall on controlled gusts while tethered gliders practice delicate maneuvers. Charts of prevailing winds cascade down a central column.",
+      "exits": {
+        "n": "inventors_forum",
+        "w": "wind_tunnel"
+      },
+      "items": [
+        {
+          "name": "Stabilizer Ribbon",
+          "description": "Tie it to a wing edge to automatically counterbalance turbulence."
+        }
+      ]
     }
   ]
 }

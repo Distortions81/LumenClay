@@ -4,12 +4,14 @@
     {
       "id": "library",
       "title": "Dustlit Library",
-      "description": "Shelves lean with the weight of forgotten ideas. A faint smell of paper and ozone. Passages branch to specialized wings and an old stairwell spirals upward.",
+      "description": "Shelves lean with the weight of forgotten ideas. A faint smell of paper and ozone lingers as enchanted lanterns drift between stacks, nudging readers toward passages that suit their curiosity. Polished clay floors reflect vaulted ceilings etched with constellations of scholarship.",
       "exits": {
         "e": "scriptorium",
         "n": "astral_gallery",
+        "nw": "lexicon_terrace",
         "s": "start",
-        "u": "observatory"
+        "u": "observatory",
+        "w": "binding_atrium"
       },
       "items": [
         {
@@ -19,133 +21,395 @@
         {
           "name": "Star Chart",
           "description": "Constellations rearrange themselves to trace paths through the stacks."
+        },
+        {
+          "name": "Index Lattice",
+          "description": "A translucent lattice that floats at your elbow, listing relevant references as you think of new topics."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "First Librarian Ellion",
+          "auto_greet": "Knowledge is a kiln—feed it questions and it warms everyone nearby."
         }
       ]
     },
     {
       "id": "scriptorium",
       "title": "Scriptorium of Murmured Ink",
-      "description": "Tall lecterns cradle scrolls that write themselves, quills whispering secrets of visitors past.",
+      "description": "Tall lecterns cradle scrolls that write themselves, quills whispering secrets of visitors past. Ink golems pad softly between desks, offering blank parchment infused with cooperative enchantments.",
       "exits": {
         "e": "illumination_studio",
+        "n": "language_lab",
         "s": "ink_garden",
         "w": "library"
-      }
+      },
+      "items": [
+        {
+          "name": "Self-Turning Page",
+          "description": "A bound page that flips itself to follow along with the text you read aloud."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Copyist Varo",
+          "auto_greet": "Mind the punctuation; it has opinions about where it prefers to rest."
+        }
+      ]
+    },
+    {
+      "id": "language_lab",
+      "title": "Language Laboratory",
+      "description": "Soundproof alcoves hum with translated echoes, letting scholars test new dialects without disturbing their neighbors. Floating consonants shimmer above each workstation, ready to reshape themselves into freshly forged words.",
+      "exits": {
+        "n": "palimpsest_vault",
+        "s": "scriptorium",
+        "w": "lexicon_terrace"
+      },
+      "items": [
+        {
+          "name": "Dialect Prism",
+          "description": "Twist the prism and any sentence spoken nearby rewrites itself into a chosen language."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Linguist Maraen",
+          "auto_greet": "Care to barter a phrase? I collect idioms like other folk collect charms."
+        }
+      ]
     },
     {
       "id": "illumination_studio",
       "title": "Illumination Studio",
-      "description": "Gold leaf dust floats in sunshafts while automatons patiently gild every margin in sight.",
+      "description": "Gold leaf dust floats in sunshafts while automatons patiently gild every margin in sight. Adjustable lenses slide across the windows, tinting the room to match the palette of whichever manuscript is underway.",
       "exits": {
+        "e": "palimpsest_vault",
         "n": "glyph_vault",
         "s": "ink_garden",
         "w": "scriptorium"
-      }
+      },
+      "items": [
+        {
+          "name": "Auric Brush",
+          "description": "A brush that traces light as easily as pigment, perfect for illuminating diagrams."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Gilder Sophine",
+          "auto_greet": "Hold still and I'll frame that idea with a bit of light."
+        }
+      ]
+    },
+    {
+      "id": "palimpsest_vault",
+      "title": "Palimpsest Vault",
+      "description": "Shelves revolve behind translucent screens, revealing layered histories etched one atop the other. Gentle magic keeps the voices of previous scribes murmuring just loud enough to guide careful revision.",
+      "exits": {
+        "n": "atlas_sanctum",
+        "s": "language_lab",
+        "w": "glyph_vault"
+      },
+      "items": [
+        {
+          "name": "Rewriting Stylus",
+          "description": "Touch the stylus to any text and it lifts forgotten drafts for comparison."
+        }
+      ]
     },
     {
       "id": "glyph_vault",
       "title": "Vault of Glyphs",
-      "description": "Shelves of rune-carved stones hum softly, rearranging into new phrases when no one watches.",
+      "description": "Shelves of rune-carved stones hum softly, rearranging into new phrases when no one watches. Suspended glyphs rotate overhead, matching visitors with sigils attuned to their questions.",
       "exits": {
+        "n": "atlas_sanctum",
+        "e": "palimpsest_vault",
         "s": "illumination_studio",
         "w": "ink_garden"
-      }
+      },
+      "items": [
+        {
+          "name": "Rune Rosary",
+          "description": "A loop of glyph-beads that glows when arranged into a protective charm."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Runesmith Tal",
+          "auto_greet": "The stones listen—choose your words with the patience they deserve."
+        }
+      ]
     },
     {
       "id": "ink_garden",
       "title": "Garden of Living Ink",
-      "description": "Vines bloom with characters that drip like dew, spelling compliments to anyone who lingers.",
+      "description": "Vines bloom with characters that drip like dew, spelling compliments to anyone who lingers. Rills of ink wind between stepping stones, offering samples of every color imaginable.",
       "exits": {
         "e": "glyph_vault",
         "n": "scriptorium",
+        "s": "binding_atrium",
         "w": "atelier_dormitory"
-      }
+      },
+      "items": [
+        {
+          "name": "Chromatic Vine",
+          "description": "Snip a tendril and it becomes a quill that writes in whatever shade you hum."
+        }
+      ]
+    },
+    {
+      "id": "binding_atrium",
+      "title": "Binding Atrium",
+      "description": "Stacks of leather, clay, and woven reed rest on rotating tables, each coated with smart resin that molds itself to the reader's grip. Ceiling fans whisper page numbers to aid those assembling bespoke tomes.",
+      "exits": {
+        "e": "library",
+        "n": "lexicon_terrace",
+        "s": "quiet_gallery",
+        "w": "binding_vault"
+      },
+      "items": [
+        {
+          "name": "Spine Clamp",
+          "description": "Clamp a loose stack within and it binds the pages with a ribbon of cooling light."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Binder Iressa",
+          "auto_greet": "Looking for a new cover? Tell me how your story feels in the hand."
+        }
+      ]
+    },
+    {
+      "id": "binding_vault",
+      "title": "Binding Vault",
+      "description": "Quiet alcoves store rare cover materials: dragonhide, glassleaf, and even woven moonlight. Protective wards purr softly, recognizing trustworthy craftsmanship.",
+      "exits": {
+        "e": "binding_atrium",
+        "s": "quiet_gallery"
+      },
+      "items": [
+        {
+          "name": "Moonlight Spool",
+          "description": "Thread spun from moonbeams—perfect for stitching together luminous folios."
+        }
+      ]
+    },
+    {
+      "id": "quiet_gallery",
+      "title": "Quiet Gallery",
+      "description": "Murals of legendary debates line the walls, animated in slow pantomime so as not to disturb the silence. Soundcatchers hang from the ceiling, capturing stray noise and tucking it into decorative jars.",
+      "exits": {
+        "e": "memory_chapel",
+        "n": "binding_vault"
+      },
+      "items": [
+        {
+          "name": "Silence Sash",
+          "description": "Drape it across your shoulders to mute footsteps for an hour."
+        }
+      ]
+    },
+    {
+      "id": "lexicon_terrace",
+      "title": "Lexicon Terrace",
+      "description": "An open-air study lined with shelves of dictionaries in every known tongue. The breeze flips pages that glow briefly, highlighting exactly the definition you require.",
+      "exits": {
+        "e": "language_lab",
+        "ne": "atlas_sanctum",
+        "s": "binding_atrium",
+        "sw": "library"
+      },
+      "items": [
+        {
+          "name": "Glossary Stone",
+          "description": "A smooth stone that translates any overheard word into a whisper only you can hear."
+        }
+      ]
+    },
+    {
+      "id": "atlas_sanctum",
+      "title": "Atlas Sanctum",
+      "description": "Floating globes of clay and light orbit a central dais, each mapping trade winds, ley lines, or hidden caverns. Touching a globe projects a temporary path through the air, complete with annotations and historical footnotes.",
+      "exits": {
+        "n": "celestial_walkway",
+        "s": "astral_gallery",
+        "w": "lexicon_terrace"
+      },
+      "items": [
+        {
+          "name": "Cartographer's Sphere",
+          "description": "A sphere that captures the geography of any region you walk for more than ten heartbeats."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Atlas-Keeper Brehn",
+          "auto_greet": "Name a horizon and I'll show you the roads it dreams of."
+        }
+      ]
     },
     {
       "id": "astral_gallery",
       "title": "Astral Gallery",
-      "description": "Paintings of distant nebulae pulse in real time, sharing borrowed starlight with the hall.",
+      "description": "Paintings of distant nebulae pulse in real time, sharing borrowed starlight with the hall. Glass pedestals hold meteor fragments that hum when passed, harmonizing with the constellations overhead.",
       "exits": {
         "e": "planetarium",
+        "n": "atlas_sanctum",
         "s": "library",
         "w": "memory_chapel"
-      }
+      },
+      "items": [
+        {
+          "name": "Starlit Palette",
+          "description": "Mix a color upon it and the sky outside adopts that hue for a single evening."
+        }
+      ]
     },
     {
       "id": "planetarium",
       "title": "Clockwork Planetarium",
-      "description": "Brass constellations spin overhead, projecting constellations that occasionally wink back.",
+      "description": "Brass constellations spin overhead, projecting patterns that occasionally wink back. Seats carved from cooled meteor iron pivot to follow whichever celestial event the dome highlights.",
       "exits": {
         "u": "celestial_walkway",
         "w": "astral_gallery"
-      }
+      },
+      "items": [
+        {
+          "name": "Orbital Lens",
+          "description": "When held to the eye, it reveals the gravitational threads linking nearby stars."
+        }
+      ]
     },
     {
       "id": "memory_chapel",
       "title": "Chapel of Echoed Memory",
-      "description": "Benches face empty air where voices gather, replaying gratitude offered by travelers long gone.",
+      "description": "Benches face empty air where voices gather, replaying gratitude offered by travelers long gone. Candles shaped like open books float overhead, dimming when solemn vows are spoken.",
       "exits": {
         "d": "echo_archive",
-        "e": "astral_gallery"
-      }
+        "e": "astral_gallery",
+        "w": "quiet_gallery"
+      },
+      "items": [
+        {
+          "name": "Remembering Candle",
+          "description": "Light it and a cherished memory plays in soft light across the chapel floor."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Chaplain Oles",
+          "auto_greet": "Leave a word of thanks; the echoes nourish the shelves as surely as dusting does."
+        }
+      ]
     },
     {
       "id": "echo_archive",
       "title": "Echo Archive",
-      "description": "Rows of crystal cylinders capture laughter, arguments, and lullabies awaiting a new audience.",
+      "description": "Rows of crystal cylinders capture laughter, arguments, and lullabies awaiting a new audience. The air vibrates with stored emotion, ready to be replayed for historians or homesick travelers.",
       "exits": {
         "u": "memory_chapel"
-      }
+      },
+      "items": [
+        {
+          "name": "Echo Cylinder",
+          "description": "A portable cylinder that can store a single spoken sentence for posterity."
+        }
+      ]
     },
     {
       "id": "observatory",
       "title": "Windworn Observatory",
-      "description": "An aged telescope peers through a ragged aperture; faint comets leave notes in its ledger.",
+      "description": "An aged telescope peers through a ragged aperture; faint comets leave notes in its ledger. Sails of silk drift overhead, capturing stray starlight to power the instruments at night.",
       "exits": {
         "d": "library",
         "e": "celestial_walkway",
         "n": "skybridge"
-      }
+      },
+      "items": [
+        {
+          "name": "Star Ledger",
+          "description": "Entries appear on the ledger whenever a new celestial event is observed from anywhere in the city."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Astrolabe Keeper Vin",
+          "auto_greet": "If the stars frown tonight, we'll brew tea until they forgive us."
+        }
+      ]
     },
     {
       "id": "celestial_walkway",
       "title": "Celestial Walkway",
-      "description": "A glass-floored bridge floats through a pocket of gravity, stars drifting lazily beneath your boots.",
+      "description": "A glass-floored bridge floats through a pocket of gravity, stars drifting lazily beneath your boots. Brass filigree along the railing records the names of those who dared to look straight down without flinching.",
       "exits": {
         "d": "planetarium",
         "e": "skybridge",
+        "s": "atlas_sanctum",
         "w": "observatory"
-      }
+      },
+      "items": [
+        {
+          "name": "Gravity Bauble",
+          "description": "Release it and it orbits your shoulders, keeping you steady on narrow bridges."
+        }
+      ]
     },
     {
       "id": "skybridge",
       "title": "Skybridge of Lanterns",
-      "description": "Wind-bells stitched from constellations chime, guiding wanderers toward higher, brighter places.",
+      "description": "Wind-bells stitched from constellations chime, guiding wanderers toward higher, brighter places. Suspended lanterns gently adjust their glow to match the courage of those crossing.",
       "exits": {
         "e": "balloon_roost",
         "n": "cloud_dock",
         "s": "observatory",
         "w": "celestial_walkway"
-      }
+      },
+      "items": [
+        {
+          "name": "Lantern Tassel",
+          "description": "Tie it to your pack and the skybridge will always brighten a bit more for you."
+        }
+      ]
     },
     {
       "id": "cloud_dock",
       "title": "Cloud Dock",
-      "description": "Tethers secure zephyrs like ships, each labeled with a destination written in vapor.",
+      "description": "Tethers secure zephyrs like ships, each labeled with a destination written in vapor. Dockhands weave nets of wind to catch stray breezes before they drift into the market below.",
       "exits": {
         "d": "harbor_lighthouse",
         "s": "skybridge",
         "w": "clocktower_belfry"
-      }
+      },
+      "items": [
+        {
+          "name": "Wind Ticket",
+          "description": "A stamped ticket that entitles the bearer to a one-way gust toward any district spire."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Dockmaster Ril",
+          "auto_greet": "You're just in time—the west wind volunteered to carry guests to the market."
+        }
+      ]
     },
     {
       "id": "balloon_roost",
       "title": "Balloon Roost",
-      "description": "Deflated exploration balloons roost like sleeping birds, dreaming of tomorrow's discoveries.",
+      "description": "Deflated exploration balloons roost like sleeping birds, dreaming of tomorrow's discoveries. Racks of spare silk and sandbag charms await the next expedition's tailoring.",
       "exits": {
         "s": "loft",
         "w": "skybridge"
-      }
+      },
+      "items": [
+        {
+          "name": "Sandbag Charm",
+          "description": "Whisper a destination and the charm lightens or weights your pack to keep you level in flight."
+        }
+      ]
     }
   ]
 }
