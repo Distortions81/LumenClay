@@ -76,6 +76,7 @@ type World struct {
 	areasPath         string
 	accounts          *AccountManager
 	mail              *MailSystem
+	tells             *TellSystem
 	roomSources       map[RoomID]string
 	builderPath       string
 	forceAllAdmin     bool
@@ -221,6 +222,13 @@ func (w *World) MailSystem() *MailSystem {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	return w.mail
+}
+
+// AttachTellSystem connects the offline tell manager to the world.
+func (w *World) AttachTellSystem(tells *TellSystem) {
+	w.mu.Lock()
+	w.tells = tells
+	w.mu.Unlock()
 }
 
 // AccountStats exposes account metadata for the provided name.
@@ -659,6 +667,73 @@ func (w *World) deliverChannelMessage(target *Player, msg string, channel Channe
 	case target.Output <- msg:
 	default:
 	}
+}
+
+// QueueOfflineTell stores a private message for delivery when the recipient returns.
+// It returns the queued tell alongside the canonical recipient name.
+func (w *World) QueueOfflineTell(sender *Player, recipient, message string) (OfflineTell, string, error) {
+	if sender == nil {
+		return OfflineTell{}, "", fmt.Errorf("sender is required")
+	}
+	trimmedRecipient := strings.TrimSpace(recipient)
+	if trimmedRecipient == "" {
+		return OfflineTell{}, "", fmt.Errorf("who are you trying to tell?")
+	}
+	trimmedMessage := strings.TrimSpace(message)
+	if trimmedMessage == "" {
+		return OfflineTell{}, "", fmt.Errorf("message cannot be empty")
+	}
+	w.mu.RLock()
+	accounts := w.accounts
+	tells := w.tells
+	w.mu.RUnlock()
+	if accounts == nil || tells == nil {
+		return OfflineTell{}, "", fmt.Errorf("offline tells are unavailable")
+	}
+	canonical, ok := accounts.MatchAccountName(trimmedRecipient)
+	if !ok {
+		return OfflineTell{}, "", fmt.Errorf("%s has not walked the clay yet", trimmedRecipient)
+	}
+	tell, err := tells.Queue(sender.Name, canonical, trimmedMessage, time.Now().UTC())
+	if err != nil {
+		return OfflineTell{}, canonical, err
+	}
+	return tell, canonical, nil
+}
+
+func (w *World) consumeOfflineTells(name string) []OfflineTell {
+	w.mu.RLock()
+	tells := w.tells
+	w.mu.RUnlock()
+	if tells == nil {
+		return nil
+	}
+	return tells.ConsumeFor(name)
+}
+
+// DeliverOfflineTells notifies the player of any stored private messages.
+func (w *World) DeliverOfflineTells(p *Player) {
+	pending := w.consumeOfflineTells(p.Name)
+	if len(pending) == 0 {
+		return
+	}
+	sort.SliceStable(pending, func(i, j int) bool {
+		return pending[i].CreatedAt.Before(pending[j].CreatedAt)
+	})
+	var builder strings.Builder
+	count := len(pending)
+	header := fmt.Sprintf("\r\nYou have %d offline tell", count)
+	if count != 1 {
+		header += "s"
+	}
+	header += ".\r\n"
+	builder.WriteString(Style(header, AnsiYellow))
+	for _, tell := range pending {
+		stamp := tell.CreatedAt.Local().Format("2006-01-02 15:04")
+		builder.WriteString(fmt.Sprintf("  [%s] %s tells you: %s\r\n", stamp, HighlightName(tell.Sender), tell.Body))
+	}
+	p.Output <- Ansi(builder.String())
+	p.Output <- Prompt(p)
 }
 
 func (w *World) AdjacentRooms(room RoomID) []RoomID {
