@@ -91,8 +91,14 @@ func (h *roomHistory) copy() []RoomRevision {
 }
 
 type NPC struct {
-	Name      string `json:"name"`
-	AutoGreet string `json:"auto_greet"`
+	Name       string `json:"name"`
+	AutoGreet  string `json:"auto_greet"`
+	Level      int    `json:"level,omitempty"`
+	Health     int    `json:"health,omitempty"`
+	MaxHealth  int    `json:"max_health,omitempty"`
+	Mana       int    `json:"mana,omitempty"`
+	MaxMana    int    `json:"max_mana,omitempty"`
+	Experience int    `json:"experience,omitempty"`
 }
 
 // ResetKind identifies the type of entity governed by a room reset.
@@ -116,6 +122,33 @@ type RoomReset struct {
 type Item struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
+}
+
+func normalizeNPC(n *NPC) {
+	if n == nil {
+		return
+	}
+	if n.Level < 1 {
+		n.Level = 1
+	}
+	if n.MaxHealth <= 0 {
+		n.MaxHealth = 40 + (n.Level-1)*8
+	}
+	if n.Health <= 0 || n.Health > n.MaxHealth {
+		n.Health = n.MaxHealth
+	}
+	if n.MaxMana < 0 {
+		n.MaxMana = 10 + (n.Level-1)*4
+	}
+	if n.Mana < 0 || n.Mana > n.MaxMana {
+		n.Mana = n.MaxMana
+	}
+	if n.Experience < 0 {
+		n.Experience = 0
+	}
+	if n.Experience == 0 {
+		n.Experience = n.Level * 25
+	}
 }
 
 // StartRoom is the default entry point for new players.
@@ -327,6 +360,9 @@ func (w *World) AddPlayerForTest(p *Player) {
 	}
 	now := time.Now()
 	p.JoinedAt = now
+	p.EnsureStats()
+	p.Health = p.MaxHealth
+	p.Mana = p.MaxMana
 	if w.forceAllAdmin {
 		p.IsAdmin = true
 	}
@@ -396,6 +432,11 @@ func loadAreaFile(areasPath, name string, rooms map[RoomID]*Room, sources map[Ro
 		}
 		if room.Exits == nil {
 			room.Exits = make(map[string]RoomID)
+		}
+		if len(room.NPCs) > 0 {
+			for i := range room.NPCs {
+				normalizeNPC(&room.NPCs[i])
+			}
 		}
 		if _, exists := rooms[room.ID]; exists && !allowOverride {
 			return fmt.Errorf("duplicate room id %s", room.ID)
@@ -585,6 +626,9 @@ func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool, pro
 		existing.Channels = cloneChannelSettings(channels)
 		existing.ChannelAliases = cloneChannelAliases(aliases)
 		existing.JoinedAt = now
+		existing.EnsureStats()
+		existing.Health = existing.MaxHealth
+		existing.Mana = existing.MaxMana
 		w.removePlayerOrderLocked(name)
 		w.playerOrder = append(w.playerOrder, name)
 		persistChannels := cloneChannelSettings(existing.Channels)
@@ -613,6 +657,9 @@ func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool, pro
 		ChannelAliases: cloneChannelAliases(playerAliases),
 		JoinedAt:       now,
 	}
+	p.EnsureStats()
+	p.Health = p.MaxHealth
+	p.Mana = p.MaxMana
 	w.players[name] = p
 	w.removePlayerOrderLocked(name)
 	w.playerOrder = append(w.playerOrder, name)
@@ -1122,6 +1169,9 @@ func (w *World) RoomNPCs(room RoomID) []NPC {
 	}
 	npcs := make([]NPC, len(r.NPCs))
 	copy(npcs, r.NPCs)
+	for i := range npcs {
+		normalizeNPC(&npcs[i])
+	}
 	return npcs
 }
 
@@ -1147,7 +1197,133 @@ func (w *World) FindRoomNPC(room RoomID, name string) (*NPC, bool) {
 		return nil, false
 	}
 	npc := r.NPCs[idx]
+	normalizeNPC(&npc)
 	return &npc, true
+}
+
+// NPCDamageResult describes the outcome of applying damage to an NPC.
+type NPCDamageResult struct {
+	NPC      NPC
+	Damage   int
+	Defeated bool
+}
+
+// PlayerDamageResult describes the outcome of damaging a player.
+type PlayerDamageResult struct {
+	Target       *Player
+	Damage       int
+	Defeated     bool
+	PreviousRoom RoomID
+	Remaining    int
+}
+
+// ApplyDamageToNPC reduces the health of an NPC located in the provided room.
+func (w *World) ApplyDamageToNPC(room RoomID, name string, damage int) (*NPCDamageResult, error) {
+	if damage <= 0 {
+		return nil, fmt.Errorf("damage must be positive")
+	}
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return nil, fmt.Errorf("target must not be empty")
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	r, ok := w.rooms[room]
+	if !ok {
+		return nil, fmt.Errorf("unknown room: %s", room)
+	}
+	idx := findNPCIndex(r.NPCs, trimmed)
+	if idx < 0 {
+		return nil, fmt.Errorf("no such creature here")
+	}
+	npc := r.NPCs[idx]
+	normalizeNPC(&npc)
+	if damage > npc.Health {
+		damage = npc.Health
+	}
+	npc.Health -= damage
+	defeated := npc.Health <= 0
+	result := &NPCDamageResult{NPC: npc, Damage: damage, Defeated: defeated}
+	if defeated {
+		npc.Health = 0
+		r.NPCs = append(r.NPCs[:idx], r.NPCs[idx+1:]...)
+	} else {
+		r.NPCs[idx] = npc
+	}
+	return result, nil
+}
+
+// ApplyDamageToPlayer reduces the health of a player in the attacker's room.
+func (w *World) ApplyDamageToPlayer(attacker *Player, targetName string, damage int) (*PlayerDamageResult, error) {
+	if attacker == nil {
+		return nil, fmt.Errorf("attacker required")
+	}
+	if damage <= 0 {
+		return nil, fmt.Errorf("damage must be positive")
+	}
+	trimmed := strings.TrimSpace(targetName)
+	if trimmed == "" {
+		return nil, fmt.Errorf("target must not be empty")
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if !attacker.Alive {
+		return nil, fmt.Errorf("you are in no condition to fight")
+	}
+	attacker.EnsureStats()
+	var (
+		candidates []string
+		indexes    []*Player
+	)
+	for _, p := range w.players {
+		if p == attacker || !p.Alive || p.Room != attacker.Room {
+			continue
+		}
+		candidates = append(candidates, p.Name)
+		indexes = append(indexes, p)
+	}
+	if len(candidates) == 0 {
+		return nil, fmt.Errorf("no such opponent here")
+	}
+	idx, ok := uniqueMatch(trimmed, candidates, true)
+	if !ok {
+		return nil, fmt.Errorf("no such opponent here")
+	}
+	target := indexes[idx]
+	target.EnsureStats()
+	if damage > target.Health {
+		damage = target.Health
+	}
+	target.Health -= damage
+	defeated := target.Health <= 0
+	remaining := target.Health
+	if remaining < 0 {
+		remaining = 0
+	}
+	result := &PlayerDamageResult{Target: target, Damage: damage, Defeated: defeated, PreviousRoom: target.Room, Remaining: remaining}
+	if defeated {
+		if target.Home == "" {
+			target.Home = StartRoom
+		}
+		target.Room = target.Home
+		target.EnsureStats()
+		target.Health = target.MaxHealth
+		target.Mana = target.MaxMana
+	} else {
+		target.EnsureStats()
+		target.Health = remaining
+	}
+	return result, nil
+}
+
+// AwardExperience grants experience to a player and reports level gains.
+func (w *World) AwardExperience(p *Player, amount int) int {
+	if p == nil || amount <= 0 {
+		return 0
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return p.GainExperience(amount)
 }
 
 // FindRoomItem attempts to locate an item lying in the specified room by name.
@@ -1679,6 +1855,7 @@ func (w *World) UpsertRoomNPC(roomID RoomID, name, autoGreet string) (*NPC, erro
 	prevNPCs := append([]NPC(nil), room.NPCs...)
 	prevResets := append([]RoomReset(nil), room.Resets...)
 	npc := NPC{Name: trimmed, AutoGreet: greet}
+	normalizeNPC(&npc)
 	idx := findNPCIndex(room.NPCs, trimmed)
 	if idx >= 0 {
 		room.NPCs[idx] = npc
@@ -1898,6 +2075,9 @@ func (w *World) CloneRoomPopulation(source, target RoomID) error {
 	if len(from.NPCs) > 0 {
 		npcs := make([]NPC, len(from.NPCs))
 		copy(npcs, from.NPCs)
+		for i := range npcs {
+			normalizeNPC(&npcs[i])
+		}
 		to.NPCs = npcs
 	} else {
 		to.NPCs = nil
@@ -1940,6 +2120,7 @@ func (w *World) applyRoomResetsLocked(room *Room) {
 		switch reset.Kind {
 		case ResetKindNPC:
 			npc := NPC{Name: reset.Name, AutoGreet: reset.AutoGreet}
+			normalizeNPC(&npc)
 			idx := findNPCIndex(room.NPCs, reset.Name)
 			if idx >= 0 {
 				room.NPCs[idx] = npc

@@ -19,6 +19,7 @@ var Stats = Define(Definition{
 		return false
 	}
 
+	ctx.Player.EnsureStats()
 	var builder strings.Builder
 	builder.WriteString(game.Style("\r\nAccount overview\r\n", game.AnsiBold, game.AnsiUnderline))
 	builder.WriteString(fmt.Sprintf("  Name: %s\r\n", game.HighlightName(ctx.Player.Name)))
@@ -26,6 +27,10 @@ var Stats = Define(Definition{
 	builder.WriteString(fmt.Sprintf("  Roles: %s\r\n", formatRoles(ctx.Player)))
 	builder.WriteString(fmt.Sprintf("  Home: %s\r\n", describeRoom(ctx.World, ctx.Player.Home)))
 	builder.WriteString(fmt.Sprintf("  Location: %s\r\n", describeRoom(ctx.World, ctx.Player.Room)))
+	builder.WriteString(fmt.Sprintf("  Level: %s\r\n", game.Style(fmt.Sprintf("%d", ctx.Player.Level), game.AnsiGreen, game.AnsiBold)))
+	builder.WriteString(fmt.Sprintf("  Experience: %s\r\n", game.Style(fmt.Sprintf("%d", ctx.Player.Experience), game.AnsiBlue)))
+	builder.WriteString(fmt.Sprintf("  Health: %s\r\n", game.Style(fmt.Sprintf("%d/%d", ctx.Player.Health, ctx.Player.MaxHealth), game.AnsiGreen)))
+	builder.WriteString(fmt.Sprintf("  Mana: %s\r\n", game.Style(fmt.Sprintf("%d/%d", ctx.Player.Mana, ctx.Player.MaxMana), game.AnsiMagenta)))
 
 	now := time.Now().UTC()
 	builder.WriteString(fmt.Sprintf("  Created: %s\r\n", formatTimestamp(stats.CreatedAt, now)))

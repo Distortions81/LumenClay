@@ -21,6 +21,12 @@ type Player struct {
 	ChannelAliases   map[Channel]string
 	Inventory        []Item
 	JoinedAt         time.Time
+	Level            int
+	Experience       int
+	Health           int
+	MaxHealth        int
+	Mana             int
+	MaxMana          int
 	history          []time.Time
 	channelHistory   map[Channel][]ChannelLogEntry
 	channelHistoryMu sync.Mutex
@@ -79,6 +85,69 @@ func (p *Player) channelAlias(channel Channel) string {
 		return ""
 	}
 	return p.ChannelAliases[channel]
+}
+
+// EnsureStats normalizes the player's level, health, and mana pools.
+func (p *Player) EnsureStats() {
+	if p == nil {
+		return
+	}
+	if p.Level < 1 {
+		p.Level = 1
+	}
+	if p.MaxHealth <= 0 {
+		p.MaxHealth = 50 + (p.Level-1)*10
+	}
+	if p.Health <= 0 || p.Health > p.MaxHealth {
+		p.Health = p.MaxHealth
+	}
+	if p.MaxMana < 0 {
+		p.MaxMana = 25 + (p.Level-1)*5
+	}
+	if p.Mana < 0 || p.Mana > p.MaxMana {
+		p.Mana = p.MaxMana
+	}
+}
+
+// AttackDamage estimates the base damage dealt by the player in melee combat.
+func (p *Player) AttackDamage() int {
+	p.EnsureStats()
+	base := 5 + p.Level*2
+	if base < 1 {
+		return 1
+	}
+	return base
+}
+
+// GainExperience awards experience points and handles level progression.
+// It returns the number of levels gained.
+func (p *Player) GainExperience(amount int) int {
+	if p == nil || amount <= 0 {
+		return 0
+	}
+	p.EnsureStats()
+	p.Experience += amount
+	levelsGained := 0
+	for {
+		threshold := experienceForLevel(p.Level + 1)
+		if p.Experience < threshold {
+			break
+		}
+		p.Level++
+		levelsGained++
+		p.MaxHealth += 10
+		p.MaxMana += 5
+		p.Health = p.MaxHealth
+		p.Mana = p.MaxMana
+	}
+	return levelsGained
+}
+
+func experienceForLevel(level int) int {
+	if level <= 1 {
+		return 0
+	}
+	return (level - 1) * 100
 }
 
 func (p *Player) setChannelAlias(channel Channel, alias string) {

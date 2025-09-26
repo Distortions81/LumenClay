@@ -1,6 +1,9 @@
 package game
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 const (
 	AnsiReset     = "\x1b[0m"
@@ -73,5 +76,12 @@ func Ansi(c string) string {
 
 // Prompt renders the standard player prompt.
 func Prompt(p *Player) string {
-	return Ansi(Style("\r\n> ", AnsiBold, AnsiYellow))
+	if p != nil {
+		p.EnsureStats()
+	}
+	if p == nil {
+		return Ansi(Style("\r\n> ", AnsiBold, AnsiYellow))
+	}
+	summary := fmt.Sprintf("\r\n[L%02d HP %d/%d MP %d/%d] > ", p.Level, p.Health, p.MaxHealth, p.Mana, p.MaxMana)
+	return Ansi(Style(summary, AnsiBold, AnsiYellow))
 }
