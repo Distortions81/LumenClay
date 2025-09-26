@@ -927,6 +927,69 @@ func (w *World) RoomItems(room RoomID) []Item {
 	return items
 }
 
+// RoomNPCs returns a copy of the NPCs present in the specified room.
+func (w *World) RoomNPCs(room RoomID) []NPC {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	r, ok := w.rooms[room]
+	if !ok || len(r.NPCs) == 0 {
+		return nil
+	}
+	npcs := make([]NPC, len(r.NPCs))
+	copy(npcs, r.NPCs)
+	return npcs
+}
+
+// FindRoomNPC attempts to locate an NPC in the specified room by name.
+// Matching is case-insensitive and supports prefix lookups.
+func (w *World) FindRoomNPC(room RoomID, name string) (*NPC, bool) {
+	target := strings.TrimSpace(name)
+	if target == "" {
+		return nil, false
+	}
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	r, ok := w.rooms[room]
+	if !ok || len(r.NPCs) == 0 {
+		return nil, false
+	}
+	candidates := make([]string, len(r.NPCs))
+	for i, npc := range r.NPCs {
+		candidates[i] = npc.Name
+	}
+	idx, ok := uniqueMatch(target, candidates, true)
+	if !ok {
+		return nil, false
+	}
+	npc := r.NPCs[idx]
+	return &npc, true
+}
+
+// FindRoomItem attempts to locate an item lying in the specified room by name.
+// Matching is case-insensitive and supports prefix lookups.
+func (w *World) FindRoomItem(room RoomID, name string) (*Item, bool) {
+	target := strings.TrimSpace(name)
+	if target == "" {
+		return nil, false
+	}
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	r, ok := w.rooms[room]
+	if !ok || len(r.Items) == 0 {
+		return nil, false
+	}
+	candidates := make([]string, len(r.Items))
+	for i, item := range r.Items {
+		candidates[i] = item.Name
+	}
+	idx, ok := uniqueMatch(target, candidates, true)
+	if !ok {
+		return nil, false
+	}
+	item := r.Items[idx]
+	return &item, true
+}
+
 // RoomResets returns a copy of the reset definitions for the specified room.
 func (w *World) RoomResets(room RoomID) []RoomReset {
 	w.mu.RLock()
@@ -951,6 +1014,31 @@ func (w *World) PlayerInventory(p *Player) []Item {
 	inv := make([]Item, len(stored.Inventory))
 	copy(inv, stored.Inventory)
 	return inv
+}
+
+// FindInventoryItem searches the player's carried items for the provided name.
+// Matching is case-insensitive and supports prefix lookups.
+func (w *World) FindInventoryItem(p *Player, name string) (*Item, bool) {
+	target := strings.TrimSpace(name)
+	if target == "" {
+		return nil, false
+	}
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	stored, ok := w.players[p.Name]
+	if !ok || stored != p || len(stored.Inventory) == 0 {
+		return nil, false
+	}
+	candidates := make([]string, len(stored.Inventory))
+	for i, item := range stored.Inventory {
+		candidates[i] = item.Name
+	}
+	idx, ok := uniqueMatch(target, candidates, true)
+	if !ok {
+		return nil, false
+	}
+	item := stored.Inventory[idx]
+	return &item, true
 }
 
 // TakeItem moves an item from the player's current room into their inventory.
@@ -1025,6 +1113,32 @@ func (w *World) Move(p *Player, dir string) (string, error) {
 	w.mu.Unlock()
 	w.persistPlayerState(account, next, home, channels, aliases)
 	return string(next), nil
+}
+
+// ResolveExit attempts to match the provided direction against the room's exits.
+// It returns the canonical exit label and destination room when successful.
+func (w *World) ResolveExit(room RoomID, direction string) (string, RoomID, bool) {
+	target := strings.TrimSpace(direction)
+	if target == "" {
+		return "", "", false
+	}
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	r, ok := w.rooms[room]
+	if !ok || len(r.Exits) == 0 {
+		return "", "", false
+	}
+	names := make([]string, 0, len(r.Exits))
+	destinations := make([]RoomID, 0, len(r.Exits))
+	for dir, dest := range r.Exits {
+		names = append(names, dir)
+		destinations = append(destinations, dest)
+	}
+	idx, ok := uniqueMatch(target, names, true)
+	if !ok {
+		return "", "", false
+	}
+	return names[idx], destinations[idx], true
 }
 
 func (w *World) findPlayerLocked(name string) (*Player, bool) {
