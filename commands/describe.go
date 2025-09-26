@@ -21,7 +21,7 @@ var Describe = Define(Definition{
 		ctx.Player.Output <- game.Ansi(game.Style("\r\nUsage: describe <text>", game.AnsiYellow))
 		return false
 	}
-	if _, err := ctx.World.UpdateRoomDescription(ctx.Player.Room, desc); err != nil {
+	if _, err := ctx.World.UpdateRoomDescription(ctx.Player.Room, desc, ctx.Player.Name); err != nil {
 		ctx.Player.Output <- game.Ansi(game.Style("\r\n"+err.Error(), game.AnsiYellow))
 		return false
 	}

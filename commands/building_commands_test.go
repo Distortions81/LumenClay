@@ -307,3 +307,99 @@ func TestCloneCopiesPopulation(t *testing.T) {
 		t.Fatalf("expected resets to be cloned, got %+v", room.Resets)
 	}
 }
+
+func TestNameRoomUpdatesTitle(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"start": {
+			ID:          "start",
+			Title:       "Start",
+			Description: "Start room.",
+			Exits:       map[string]game.RoomID{},
+		},
+	})
+	builder := newTestPlayer("Builder", "start")
+	builder.IsBuilder = true
+	world.AddPlayerForTest(builder)
+
+	if quit := Dispatch(world, builder, "name room Gathering Hall"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	room, ok := world.GetRoom("start")
+	if !ok {
+		t.Fatalf("room missing")
+	}
+	if room.Title != "Gathering Hall" {
+		t.Fatalf("room title = %q, want Gathering Hall", room.Title)
+	}
+	output := strings.Join(drainOutput(builder.Output), "")
+	if !strings.Contains(output, "Room name updated") {
+		t.Fatalf("expected confirmation, got %q", output)
+	}
+}
+
+func TestListShowsRoomRevisions(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"start": {
+			ID:          "start",
+			Title:       "Start",
+			Description: "Start room.",
+			Exits:       map[string]game.RoomID{},
+		},
+	})
+	builder := newTestPlayer("Builder", "start")
+	builder.IsBuilder = true
+	world.AddPlayerForTest(builder)
+
+	if quit := Dispatch(world, builder, "describe A quiet alcove"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	drainOutput(builder.Output)
+
+	if quit := Dispatch(world, builder, "list"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	output := strings.Join(drainOutput(builder.Output), "")
+	if !strings.Contains(output, "#1") || !strings.Contains(output, "#2") {
+		t.Fatalf("expected revision numbers, got %q", output)
+	}
+	if !strings.Contains(output, "Builder") {
+		t.Fatalf("expected editor name, got %q", output)
+	}
+}
+
+func TestRevnumRevertsRoom(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"start": {
+			ID:          "start",
+			Title:       "Start",
+			Description: "Start room.",
+			Exits:       map[string]game.RoomID{},
+		},
+	})
+	builder := newTestPlayer("Builder", "start")
+	builder.IsBuilder = true
+	world.AddPlayerForTest(builder)
+
+	if quit := Dispatch(world, builder, "describe First draft"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	if quit := Dispatch(world, builder, "describe Second draft"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	drainOutput(builder.Output)
+
+	if quit := Dispatch(world, builder, "revnum 2"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	msgs := strings.Join(drainOutput(builder.Output), "")
+	if !strings.Contains(msgs, "Room reverted to revision #2") {
+		t.Fatalf("expected revert confirmation, got %q", msgs)
+	}
+	room, ok := world.GetRoom("start")
+	if !ok {
+		t.Fatalf("room missing")
+	}
+	if room.Description != "First draft" {
+		t.Fatalf("room description = %q, want First draft", room.Description)
+	}
+}

@@ -30,6 +30,66 @@ type Room struct {
 	Resets      []RoomReset       `json:"resets,omitempty"`
 }
 
+// RoomRevision captures a snapshot of a room's editable fields.
+type RoomRevision struct {
+	Number      int
+	Editor      string
+	Title       string
+	Description string
+	Timestamp   time.Time
+}
+
+type roomHistory struct {
+	revisions []RoomRevision
+}
+
+func newRoomHistories(rooms map[RoomID]*Room) map[RoomID]*roomHistory {
+	histories := make(map[RoomID]*roomHistory, len(rooms))
+	for id, room := range rooms {
+		history := &roomHistory{}
+		history.append(room, "")
+		histories[id] = history
+	}
+	return histories
+}
+
+func (h *roomHistory) append(room *Room, editor string) RoomRevision {
+	now := time.Now().UTC()
+	if len(h.revisions) > 0 {
+		last := h.revisions[len(h.revisions)-1]
+		if last.Title == room.Title && last.Description == room.Description {
+			return last
+		}
+		rev := RoomRevision{
+			Number:      last.Number + 1,
+			Editor:      editor,
+			Title:       room.Title,
+			Description: room.Description,
+			Timestamp:   now,
+		}
+		h.revisions = append(h.revisions, rev)
+		return rev
+	}
+	rev := RoomRevision{
+		Number:      1,
+		Editor:      editor,
+		Title:       room.Title,
+		Description: room.Description,
+		Timestamp:   now,
+	}
+	h.revisions = append(h.revisions, rev)
+	return rev
+}
+
+func (h *roomHistory) copy() []RoomRevision {
+	if h == nil || len(h.revisions) == 0 {
+		return nil
+	}
+	out := make([]RoomRevision, len(h.revisions))
+	copy(out, h.revisions)
+	return out
+}
+
 type NPC struct {
 	Name      string `json:"name"`
 	AutoGreet string `json:"auto_greet"`
@@ -78,6 +138,7 @@ type World struct {
 	mail              *MailSystem
 	tells             *TellSystem
 	roomSources       map[RoomID]string
+	roomHistories     map[RoomID]*roomHistory
 	builderPath       string
 	forceAllAdmin     bool
 	criticalOpsLocked bool
@@ -135,22 +196,24 @@ func NewWorld(areasPath string) (*World, error) {
 		return nil, err
 	}
 	return &World{
-		rooms:       rooms,
-		players:     make(map[string]*Player),
-		playerOrder: make([]string, 0),
-		areasPath:   areasPath,
-		roomSources: sources,
-		builderPath: filepath.Join(areasPath, builderAreaFile),
+		rooms:         rooms,
+		players:       make(map[string]*Player),
+		playerOrder:   make([]string, 0),
+		areasPath:     areasPath,
+		roomSources:   sources,
+		roomHistories: newRoomHistories(rooms),
+		builderPath:   filepath.Join(areasPath, builderAreaFile),
 	}, nil
 }
 
 // NewWorldWithRooms constructs a world populated with the provided rooms.
 func NewWorldWithRooms(rooms map[RoomID]*Room) *World {
 	return &World{
-		rooms:       rooms,
-		players:     make(map[string]*Player),
-		playerOrder: make([]string, 0),
-		roomSources: make(map[RoomID]string, len(rooms)),
+		rooms:         rooms,
+		players:       make(map[string]*Player),
+		playerOrder:   make([]string, 0),
+		roomSources:   make(map[RoomID]string, len(rooms)),
+		roomHistories: newRoomHistories(rooms),
 	}
 }
 
@@ -351,6 +414,18 @@ func (w *World) markRoomAsBuilderLocked(id RoomID) (string, bool) {
 	prev, existed := w.roomSources[id]
 	w.roomSources[id] = builderAreaFile
 	return prev, existed
+}
+
+func (w *World) recordRoomRevisionLocked(room *Room, editor string) RoomRevision {
+	if w.roomHistories == nil {
+		w.roomHistories = make(map[RoomID]*roomHistory)
+	}
+	history, ok := w.roomHistories[room.ID]
+	if !ok {
+		history = &roomHistory{}
+		w.roomHistories[room.ID] = history
+	}
+	return history.append(room, editor)
 }
 
 func (w *World) setExitLocked(roomID RoomID, direction string, target *RoomID) (func(), error) {
@@ -575,6 +650,7 @@ func (w *World) Reboot() ([]*Player, error) {
 	}
 	w.rooms = rooms
 	w.roomSources = sources
+	w.roomHistories = newRoomHistories(rooms)
 	if w.areasPath != "" {
 		w.builderPath = filepath.Join(w.areasPath, builderAreaFile)
 	}
@@ -1342,7 +1418,7 @@ func (w *World) SetHome(p *Player, room RoomID) error {
 }
 
 // CreateRoom adds a new room to the world and persists it to the builder area.
-func (w *World) CreateRoom(id RoomID, title string) (*Room, error) {
+func (w *World) CreateRoom(id RoomID, title, editor string) (*Room, error) {
 	trimmed := strings.TrimSpace(string(id))
 	if trimmed == "" {
 		return nil, fmt.Errorf("room id must not be empty")
@@ -1377,12 +1453,13 @@ func (w *World) CreateRoom(id RoomID, title string) (*Room, error) {
 		w.mu.Unlock()
 		return nil, err
 	}
+	w.recordRoomRevisionLocked(room, editor)
 	w.mu.Unlock()
 	return room, nil
 }
 
 // UpdateRoomDescription modifies a room's description and persists the change.
-func (w *World) UpdateRoomDescription(id RoomID, description string) (*Room, error) {
+func (w *World) UpdateRoomDescription(id RoomID, description, editor string) (*Room, error) {
 	w.mu.Lock()
 	room, ok := w.rooms[id]
 	if !ok {
@@ -1402,6 +1479,107 @@ func (w *World) UpdateRoomDescription(id RoomID, description string) (*Room, err
 		w.mu.Unlock()
 		return nil, err
 	}
+	w.recordRoomRevisionLocked(room, editor)
+	w.mu.Unlock()
+	return room, nil
+}
+
+// UpdateRoomTitle modifies a room's title and records the change.
+func (w *World) UpdateRoomTitle(id RoomID, title, editor string) (*Room, error) {
+	trimmed := strings.TrimSpace(title)
+	if trimmed == "" {
+		return nil, fmt.Errorf("room title must not be empty")
+	}
+	w.mu.Lock()
+	room, ok := w.rooms[id]
+	if !ok {
+		w.mu.Unlock()
+		return nil, fmt.Errorf("unknown room: %s", id)
+	}
+	if room.Title == trimmed {
+		w.mu.Unlock()
+		return room, nil
+	}
+	prevTitle := room.Title
+	prevSource, hadSource := w.markRoomAsBuilderLocked(id)
+	room.Title = trimmed
+	if err := w.persistBuilderRoomsLocked(); err != nil {
+		room.Title = prevTitle
+		if hadSource {
+			w.roomSources[id] = prevSource
+		} else {
+			delete(w.roomSources, id)
+		}
+		w.mu.Unlock()
+		return nil, err
+	}
+	w.recordRoomRevisionLocked(room, editor)
+	w.mu.Unlock()
+	return room, nil
+}
+
+// RoomRevisions returns a copy of the recorded revision history for a room.
+func (w *World) RoomRevisions(id RoomID) ([]RoomRevision, error) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if _, ok := w.rooms[id]; !ok {
+		return nil, fmt.Errorf("unknown room: %s", id)
+	}
+	history := w.roomHistories[id]
+	if history == nil {
+		return nil, nil
+	}
+	return history.copy(), nil
+}
+
+// RevertRoomToRevision restores a room's state from an earlier revision.
+func (w *World) RevertRoomToRevision(id RoomID, number int, editor string) (*Room, error) {
+	if number <= 0 {
+		return nil, fmt.Errorf("revision must be positive")
+	}
+	w.mu.Lock()
+	history := w.roomHistories[id]
+	if history == nil || len(history.revisions) == 0 {
+		w.mu.Unlock()
+		return nil, fmt.Errorf("no revisions recorded for room %s", id)
+	}
+	var target *RoomRevision
+	for i := range history.revisions {
+		if history.revisions[i].Number == number {
+			target = &history.revisions[i]
+			break
+		}
+	}
+	if target == nil {
+		w.mu.Unlock()
+		return nil, fmt.Errorf("unknown revision %d for room %s", number, id)
+	}
+	room, ok := w.rooms[id]
+	if !ok {
+		w.mu.Unlock()
+		return nil, fmt.Errorf("unknown room: %s", id)
+	}
+	if room.Title == target.Title && room.Description == target.Description {
+		w.mu.Unlock()
+		return room, nil
+	}
+	prevTitle := room.Title
+	prevDesc := room.Description
+	prevSource, hadSource := w.markRoomAsBuilderLocked(id)
+	room.Title = target.Title
+	room.Description = target.Description
+	if err := w.persistBuilderRoomsLocked(); err != nil {
+		room.Title = prevTitle
+		room.Description = prevDesc
+		if hadSource {
+			w.roomSources[id] = prevSource
+		} else {
+			delete(w.roomSources, id)
+		}
+		w.mu.Unlock()
+		return nil, err
+	}
+	w.recordRoomRevisionLocked(room, editor)
 	w.mu.Unlock()
 	return room, nil
 }
