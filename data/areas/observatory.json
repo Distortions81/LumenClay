@@ -20,7 +20,7 @@
       "npcs": [
         {
           "name": "Starcall Adept",
-          "auto_greet": "Mind your step—each stone remembers where the sky once opened."
+          "auto_greet": "Mind your step\u2014each stone remembers where the sky once opened."
         }
       ]
     },
@@ -59,7 +59,7 @@
       "npcs": [
         {
           "name": "Archivist of Echoes",
-          "auto_greet": "Hush—the constellations are transcribing our conversation as we speak."
+          "auto_greet": "Hush\u2014the constellations are transcribing our conversation as we speak."
         }
       ]
     },
@@ -81,7 +81,7 @@
       "npcs": [
         {
           "name": "Lenswright Mara",
-          "auto_greet": "If you find a mote of dust, return it—it may have wandered in from a comet."
+          "auto_greet": "If you find a mote of dust, return it\u2014it may have wandered in from a comet."
         }
       ]
     },
@@ -118,7 +118,7 @@
       "npcs": [
         {
           "name": "Hydromancer Vele",
-          "auto_greet": "Careful—every ripple writes a new prediction across the stars above."
+          "auto_greet": "Careful\u2014every ripple writes a new prediction across the stars above."
         }
       ]
     },
@@ -163,7 +163,7 @@
       "npcs": [
         {
           "name": "Lightcaster's Echo",
-          "auto_greet": "Mind the shutters—each note of light carries a message waiting to be returned."
+          "auto_greet": "Mind the shutters\u2014each note of light carries a message waiting to be returned."
         }
       ]
     },
@@ -202,7 +202,7 @@
       "npcs": [
         {
           "name": "Professor Orrin Aster",
-          "auto_greet": "Ah, a visitor! Tell me—have the stars been courteous tonight, or must I file another complaint?"
+          "auto_greet": "Ah, a visitor! Tell me\u2014have the stars been courteous tonight, or must I file another complaint?"
         }
       ]
     },
@@ -222,7 +222,7 @@
       "npcs": [
         {
           "name": "Beacon Keeper Iress",
-          "auto_greet": "Stand close—the lanterns speak of which travelers will find their way home tonight."
+          "auto_greet": "Stand close\u2014the lanterns speak of which travelers will find their way home tonight."
         }
       ]
     },
@@ -233,7 +233,8 @@
       "exits": {
         "w": "observatory_dome",
         "nw": "observatory_spire",
-        "d": "observatory_starwell"
+        "d": "observatory_starwell",
+        "sw": "start_aurora_balcony"
       },
       "items": [
         {
@@ -276,7 +277,7 @@
       "npcs": [
         {
           "name": "Resonant Custodian",
-          "auto_greet": "Match the pitch in your chest—the vault only shares its secrets with those in tune."
+          "auto_greet": "Match the pitch in your chest\u2014the vault only shares its secrets with those in tune."
         }
       ]
     },

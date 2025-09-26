@@ -4,12 +4,14 @@
     {
       "id": "garden",
       "title": "Night Garden",
-      "description": "Bioluminescent vines twine overhead. Footsteps hush on moss.",
+      "description": "Bioluminescent vines twine overhead and sway in time with unseen crickets. Footsteps hush on mossy paths that glow brighter beneath kind intentions. Perfumed mists drift between sculpted hedges, each whispering directions in floral scents toward the districts beyond.",
       "exits": {
         "d": "catacomb_nursery",
         "e": "glasshouse",
         "n": "start",
+        "ne": "chorus_arbor",
         "s": "moonpool",
+        "sw": "glowroot_labyrinth",
         "w": "root_caves"
       },
       "items": [
@@ -20,81 +22,417 @@
         {
           "name": "Vial of Dew",
           "description": "The droplets chime like tiny bells whenever danger nears."
+        },
+        {
+          "name": "Fragrance Compass",
+          "description": "A ceramic bloom that turns toward whichever scent currently guides the garden's guardians."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Garden Docent Syra",
+          "auto_greet": "Follow the scent of moon-mint if you wish to dream true tonight."
+        }
+      ]
+    },
+    {
+      "id": "chorus_arbor",
+      "title": "Chorus Arbor",
+      "description": "Branching trellises weave together into a vaulted chamber alive with the harmonized buzz of pollinators. Each vine bears clay chimes tuned to bird calls, creating a symphony that shepherds the nocturnal blooms open.",
+      "exits": {
+        "e": "orchidarium",
+        "n": "pollinator_sanctum",
+        "s": "garden"
+      },
+      "items": [
+        {
+          "name": "Harmony Leaf",
+          "description": "Pressing the leaf to your ear lets you hear the chorus guiding migrating birds overhead."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Choirmistress Lalei",
+          "auto_greet": "Join the refrain and the arbor will braid a path where you need it most."
+        }
+      ]
+    },
+    {
+      "id": "pollinator_sanctum",
+      "title": "Pollinator Sanctum",
+      "description": "Glass hives suspended in the air revolve slowly, each home to luminous bees that sketch sigils in pollen. Nectar pools shimmer in recessed basins, projecting memories of every garden tended this season.",
+      "exits": {
+        "e": "dewfall_veranda",
+        "s": "chorus_arbor",
+        "w": "orchidarium"
+      },
+      "items": [
+        {
+          "name": "Pollen Censer",
+          "description": "A delicate censer that releases a calming haze encouraging even the shyest flora to bloom."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Keeper Daxil",
+          "auto_greet": "Mind the bees—they are writing tomorrow's harvest in the air."
+        }
+      ]
+    },
+    {
+      "id": "orchidarium",
+      "title": "Shifting Orchidarium",
+      "description": "Panels of translucent clay slide silently to rearrange terraces of orchids, ensuring each blossom shares precisely the right light. Dew-beads drift between petals, carrying whispered gossip from distant corners of the garden.",
+      "exits": {
+        "n": "glasshouse",
+        "e": "pollinator_sanctum",
+        "s": "glimmer_field",
+        "w": "chorus_arbor"
+      },
+      "items": [
+        {
+          "name": "Bloom Tuning Fork",
+          "description": "Strike the fork and an orchid reshapes itself into the bloom pictured in your mind."
         }
       ]
     },
     {
       "id": "glasshouse",
       "title": "Singing Glasshouse",
-      "description": "Condensation beads chime against crystal panes, watering rows of obedient aurora-flowers.",
+      "description": "Condensation beads chime against crystal panes, watering rows of obedient aurora-flowers. Heat and chill spiral through carefully tuned vents, coaxing seedlings to glow in hues matched to the constellations above.",
       "exits": {
         "e": "rain_maker",
         "n": "lantern_row",
+        "s": "orchidarium",
         "w": "garden"
-      }
+      },
+      "items": [
+        {
+          "name": "Glimmer Shears",
+          "description": "Their blades part light without harming petals, perfect for shaping luminous blooms."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Glasswright Fen",
+          "auto_greet": "Mind the panes—each one remembers the constellation that birthed it."
+        }
+      ]
     },
     {
       "id": "rain_maker",
       "title": "Rain Maker's Platform",
-      "description": "A lattice of drums summons gentle rainclouds that politely take turns watering the beds below.",
+      "description": "A lattice of drums summons gentle rainclouds that politely take turns watering the beds below. Weather scripts carved into the railings respond to touch, altering humidity with a flourish of fingers.",
       "exits": {
+        "e": "glimmer_field",
+        "s": "dewfall_veranda",
+        "se": "mistway",
         "w": "glasshouse"
-      }
+      },
+      "items": [
+        {
+          "name": "Weather Mallet",
+          "description": "Each strike calls a different style of rainfall, from tinkling drizzle to thundering downpour."
+        }
+      ]
     },
     {
-      "id": "moonpool",
-      "title": "Moonpool Court",
-      "description": "Silver water mirrors twin moons that wink whenever a wish sounds sincere enough.",
+      "id": "dewfall_veranda",
+      "title": "Dewfall Veranda",
+      "description": "A suspended veranda catches the constant dew, letting it drip in precise rhythms into clay troughs of herbs. Bioluminescent ivy trails overhead, pulsing brighter when newcomers arrive.",
       "exits": {
-        "e": "mistway",
-        "n": "garden",
-        "s": "tidal_library"
-      }
+        "n": "rain_maker",
+        "e": "glimmer_field",
+        "s": "tideward_lookout",
+        "w": "pollinator_sanctum"
+      },
+      "items": [
+        {
+          "name": "Herbal Ledger",
+          "description": "The ledger lists which herbs bloom each hour and rearranges itself to suit the reader's needs."
+        }
+      ]
+    },
+    {
+      "id": "glimmer_field",
+      "title": "Glimmer Field",
+      "description": "Fireflies orbit waist-high topiaries, forming temporary constellations that guide travelers toward the marsh. The ground is springy and echo-free, perfect for private conversations carried on the breeze.",
+      "exits": {
+        "n": "orchidarium",
+        "ne": "mistway",
+        "nw": "rain_maker",
+        "s": "tideward_lookout",
+        "w": "dewfall_veranda"
+      },
+      "items": [
+        {
+          "name": "Firefly Lantern",
+          "description": "Unstopper the lantern to release friendly fireflies that map a safe perimeter before returning."
+        }
+      ]
+    },
+    {
+      "id": "tideward_lookout",
+      "title": "Tideward Lookout",
+      "description": "An open bluff overlooks the bioluminescent coast. Clay telescopes track wave heights, chiming when the tide brings news from distant harbors.",
+      "exits": {
+        "e": "serpent_bridge",
+        "n": "mistway",
+        "nw": "glimmer_field",
+        "s": "reef_gate"
+      },
+      "items": [
+        {
+          "name": "Tideglass",
+          "description": "A palm-sized globe that traps a momentary image of the shoreline to share with inland friends."
+        }
+      ]
     },
     {
       "id": "mistway",
       "title": "Mistway",
-      "description": "Cool fog drifts from stone arch to stone arch, carving ephemeral doorways toward the coast.",
+      "description": "Cool fog drifts from stone arch to stone arch, carving ephemeral doorways toward the coast. Every few breaths the mist parts to reveal glimpses of other travelers walking parallel paths.",
       "exits": {
         "e": "serpent_bridge",
+        "n": "start_glassway",
+        "nw": "rain_maker",
+        "s": "tideward_lookout",
+        "sw": "glimmer_field",
         "w": "moonpool"
-      }
+      },
+      "items": [
+        {
+          "name": "Mistcall Bell",
+          "description": "Ringing the bell clears the fog long enough to reveal hidden markers etched into the arches."
+        }
+      ]
     },
     {
       "id": "serpent_bridge",
       "title": "Serpent Bridge",
-      "description": "A sinuous bridge of woven reeds sways above glowing wetlands alive with distant song.",
+      "description": "A sinuous bridge of woven reeds sways above glowing wetlands alive with distant song. Ceramic scales along the railing warm to the touch, remembering every crossing.",
       "exits": {
         "n": "harbor",
+        "s": "reef_gate",
         "w": "mistway"
-      }
+      },
+      "items": [
+        {
+          "name": "Scale Token",
+          "description": "This charm stores the rhythm of your footsteps so the bridge will recognize you on return trips."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Bridge Warden Nira",
+          "auto_greet": "Walk in pace with the music or the reeds will play pranks with the wind."
+        }
+      ]
+    },
+    {
+      "id": "reef_gate",
+      "title": "Reef Gate",
+      "description": "Coral-shaped pillars open like petals toward the sea. Waterlogged runes shimmer along the floor, recording the tides' gossip as they ebb and flow.",
+      "exits": {
+        "e": "serpent_bridge",
+        "n": "tidal_library",
+        "s": "brine_orchard"
+      },
+      "items": [
+        {
+          "name": "Saltscroll",
+          "description": "A roll of kelp parchment that writes down the names of ships glimpsed offshore."
+        }
+      ]
+    },
+    {
+      "id": "moonpool",
+      "title": "Moonpool Court",
+      "description": "Silver water mirrors twin moons that wink whenever a wish sounds sincere enough. Bioluminescent lilies drift across the surface, spelling out predictions in ripples.",
+      "exits": {
+        "e": "mistway",
+        "n": "garden",
+        "s": "tidal_library",
+        "se": "kelp_grotto",
+        "w": "glowroot_labyrinth"
+      },
+      "items": [
+        {
+          "name": "Lunar Pebble",
+          "description": "Tossing the pebble into water reveals a brief vision of the next traveler to arrive."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Oracle Eive",
+          "auto_greet": "Wish clearly—the moon dislikes muddled hearts."
+        }
+      ]
+    },
+    {
+      "id": "kelp_grotto",
+      "title": "Kelp Grotto",
+      "description": "Trailing fronds hang like curtains, hiding alcoves filled with pearlescent seeds. Gentle currents from unseen springs swirl around your ankles, guiding you deeper into the grotto.",
+      "exits": {
+        "nw": "moonpool",
+        "s": "brine_orchard",
+        "w": "tidal_library"
+      },
+      "items": [
+        {
+          "name": "Pearl Seed",
+          "description": "Planting the seed in water grows a temporary stepping stone wherever you need it."
+        }
+      ]
     },
     {
       "id": "tidal_library",
       "title": "Tidal Library",
-      "description": "Shelves float on chained buoys, rising and falling with the surf while waterproof books gossip.",
+      "description": "Shelves float on chained buoys, rising and falling with the surf while waterproof books gossip. Shell librarians swim between stacks, ensuring every tide leaves the right reference at hand.",
       "exits": {
+        "e": "kelp_grotto",
         "n": "harbor",
+        "s": "reef_gate",
         "w": "moonpool"
-      }
+      },
+      "items": [
+        {
+          "name": "Waterproof Codex",
+          "description": "The codex rewrites itself in bubbles that burst into whispered directions when read underwater."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Currentscribe Ola",
+          "auto_greet": "Need a tide table or a lullaby? The shelves know both equally well."
+        }
+      ]
     },
     {
       "id": "root_caves",
       "title": "Root Caves",
-      "description": "Massive roots braid into tunnels lit by fireflies who take attendance of every visitor.",
+      "description": "Massive roots braid into tunnels lit by fireflies who take attendance of every visitor. The earth is soft and warm, humming with the pulse of the trees above.",
       "exits": {
         "d": "ember_grotto",
-        "e": "garden"
-      }
+        "e": "garden",
+        "s": "sap_sanctum"
+      },
+      "items": [
+        {
+          "name": "Root Fiber Rope",
+          "description": "Flexible yet strong, the rope lengthens on command to bridge gaps underground."
+        }
+      ]
+    },
+    {
+      "id": "sap_sanctum",
+      "title": "Sap Sanctum",
+      "description": "Transparent resin flows through twisting channels in the walls, carrying tiny motes of light that narrate the life of every tree in the garden.",
+      "exits": {
+        "e": "spore_chamber",
+        "n": "root_caves",
+        "s": "hanging_bog",
+        "w": "brine_orchard"
+      },
+      "items": [
+        {
+          "name": "Resin Locket",
+          "description": "Seal a memory inside and the locket will replay it in scent and color."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Sapsinger Truun",
+          "auto_greet": "Hold still; the trees wish to hear your pulse alongside their own."
+        }
+      ]
+    },
+    {
+      "id": "hanging_bog",
+      "title": "Hanging Bog",
+      "description": "Platforms of peat sway gently above reflective pools. Mist orchids bloom upside down, releasing spores that glow brighter when lies are spoken nearby.",
+      "exits": {
+        "e": "brine_orchard",
+        "n": "sap_sanctum"
+      },
+      "items": [
+        {
+          "name": "Truthspore Satchel",
+          "description": "A satchel of spores that flares gently whenever deception lingers in the air."
+        }
+      ]
+    },
+    {
+      "id": "brine_orchard",
+      "title": "Brine Orchard",
+      "description": "Salt-tolerant fruit trees twist along the shoreline, their roots drinking from both sea and spring. Clay basins collect brine-sweet nectar to trade with the market's spice merchants.",
+      "exits": {
+        "e": "sap_sanctum",
+        "n": "kelp_grotto",
+        "s": "hanging_bog",
+        "w": "glowroot_labyrinth"
+      },
+      "items": [
+        {
+          "name": "Saltfruit",
+          "description": "A pearlescent fruit whose juice enhances memories of sea journeys when shared."
+        }
+      ]
+    },
+    {
+      "id": "glowroot_labyrinth",
+      "title": "Glowroot Labyrinth",
+      "description": "Roots arch overhead, forming tunnels that rearrange themselves when sung to in the correct key. Bioluminescent fungi pave the twisting path, storing echoes of every conversation.",
+      "exits": {
+        "e": "moonpool",
+        "ne": "garden",
+        "s": "spore_chamber",
+        "w": "brine_orchard"
+      },
+      "items": [
+        {
+          "name": "Glowcap Torch",
+          "description": "A fungal lantern that remembers each fork you take and pulses brighter toward unexplored tunnels."
+        }
+      ]
+    },
+    {
+      "id": "spore_chamber",
+      "title": "Spore Chamber",
+      "description": "Humidity hangs heavy around spiraling racks of spores. Each cluster releases a different vision when inhaled, cataloged meticulously by caretakers who take pride in their precise labeling.",
+      "exits": {
+        "e": "catacomb_nursery",
+        "n": "glowroot_labyrinth",
+        "w": "sap_sanctum"
+      },
+      "items": [
+        {
+          "name": "Vision Vial",
+          "description": "A sealed vial containing spores that reveal memories of the city's founding when opened."
+        }
+      ]
     },
     {
       "id": "catacomb_nursery",
       "title": "Catacomb Nursery",
-      "description": "Clay cradles line alcoves, each nurturing a sapling soul to be replanted in the daylight above.",
+      "description": "Clay cradles line alcoves, each nurturing a sapling soul to be replanted in the daylight above. Lullabies echo in the chamber, sung by caretakers whose voices weave protective wards.",
       "exits": {
         "e": "shadow_vault",
-        "u": "garden"
-      }
+        "u": "garden",
+        "w": "spore_chamber"
+      },
+      "items": [
+        {
+          "name": "Soul Seed",
+          "description": "A carved seed that, when planted, promises to grow into a companion tree tuned to your heartbeat."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Caretaker Umber",
+          "auto_greet": "Hush—the seedlings are dreaming their first steps."
+        }
+      ]
     }
   ]
 }
