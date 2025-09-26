@@ -29,6 +29,25 @@ var Look = Define(Definition{
 				line = fmt.Sprintf("%s They say, \"%s\"", line, greet)
 			}
 			ctx.Player.Output <- game.Ansi(line)
+			if offered := ctx.World.QuestsByNPC(npc.Name); len(offered) > 0 {
+				if available := ctx.World.AvailableQuests(ctx.Player); len(available) > 0 {
+					eligible := make(map[string]struct{}, len(available))
+					for _, quest := range available {
+						eligible[strings.ToLower(quest.ID)] = struct{}{}
+					}
+					var names []string
+					for _, quest := range offered {
+						if _, ok := eligible[strings.ToLower(quest.ID)]; !ok {
+							continue
+						}
+						names = append(names, game.HighlightQuestName(quest.Name))
+					}
+					if len(names) > 0 {
+						ctx.Player.Output <- game.Ansi(fmt.Sprintf("\r\nThey seem ready to offer: %s", strings.Join(names, ", ")))
+						ctx.Player.Output <- game.Ansi("\r\nUse 'quests accept <id>' to begin.")
+					}
+				}
+			}
 			return false
 		}
 		if item, found := ctx.World.FindRoomItem(ctx.Player.Room, target); found {

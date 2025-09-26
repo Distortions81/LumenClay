@@ -1,0 +1,31 @@
+{
+  "quests": [
+    {
+      "id": "stoke_reservoir",
+      "name": "Stoke the Reservoir",
+      "description": "Glazecaller Ilyss fears the ember warden beneath the atrium will overheat the lumen channels. Defeat the construct in the reservoir and return with its resonant core to restore balance.",
+      "giver": "Glazecaller Ilyss",
+      "turn_in": "Glazecaller Ilyss",
+      "required_kills": [
+        {
+          "npc": "Ember Warden",
+          "count": 1
+        }
+      ],
+      "required_items": [
+        {
+          "item": "Resonant Core",
+          "count": 1
+        }
+      ],
+      "reward_xp": 75,
+      "reward_items": [
+        {
+          "name": "Ilyss's Ember Sigil",
+          "description": "A palm-sized sigil that glows warmly, marking you as a steward of the reservoir."
+        }
+      ],
+      "completion_message": "Ilyss seals the core within a channeling prism and nods approvingly. \"The reservoir hums in balance once more.\""
+    }
+  ]
+}

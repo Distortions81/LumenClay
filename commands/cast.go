@@ -66,6 +66,42 @@ var Cast = Define(Definition{
 				if levels > 0 {
 					ctx.Player.Output <- game.Ansi(fmt.Sprintf("\r\nYou advance to level %d!", ctx.Player.Level))
 				}
+				if len(result.Loot) > 0 {
+					names := make([]string, len(result.Loot))
+					for i, item := range result.Loot {
+						names[i] = game.HighlightItemName(item.Name)
+					}
+					lootLine := fmt.Sprintf("\r\n%s drops %s.", npcName, strings.Join(names, ", "))
+					ctx.Player.Output <- game.Ansi(lootLine)
+					ctx.World.BroadcastToRoom(ctx.Player.Room, game.Ansi(fmt.Sprintf("\r\n%s leaves behind %s.", npcName, strings.Join(names, ", "))), ctx.Player)
+				}
+				if updates := ctx.World.RecordNPCKill(ctx.Player, result.NPC); len(updates) > 0 {
+					for _, update := range updates {
+						for _, prog := range update.KillProgress {
+							ctx.Player.Output <- game.Ansi(fmt.Sprintf("\r\n[Quest] %s: %s (%d/%d)",
+								game.HighlightQuestName(update.Quest.Name),
+								game.HighlightNPCName(prog.NPC),
+								prog.Current,
+								prog.Required,
+							))
+						}
+						if update.KillsCompleted {
+							turnIn := update.Quest.TurnIn
+							if strings.TrimSpace(turnIn) == "" {
+								turnIn = update.Quest.Giver
+							}
+							if turnIn != "" {
+								ctx.Player.Output <- game.Ansi(fmt.Sprintf("\r\n[Quest] %s objectives complete. Visit %s to turn in.",
+									game.HighlightQuestName(update.Quest.Name),
+									game.HighlightNPCName(turnIn),
+								))
+							} else {
+								ctx.Player.Output <- game.Ansi(fmt.Sprintf("\r\n[Quest] %s objectives complete.",
+									game.HighlightQuestName(update.Quest.Name)))
+							}
+						}
+					}
+				}
 			}
 			ctx.Player.Output <- game.Prompt(ctx.Player)
 			return false

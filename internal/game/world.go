@@ -99,6 +99,7 @@ type NPC struct {
 	Mana       int    `json:"mana,omitempty"`
 	MaxMana    int    `json:"max_mana,omitempty"`
 	Experience int    `json:"experience,omitempty"`
+	Loot       []Item `json:"loot,omitempty"`
 }
 
 // ResetKind identifies the type of entity governed by a room reset.
@@ -176,6 +177,8 @@ type World struct {
 	forceAllAdmin     bool
 	criticalOpsLocked bool
 	disabledCommands  map[string]bool
+	quests            map[string]*Quest
+	questsByNPC       map[string][]*Quest
 }
 
 // ActivePlayer returns the currently connected player with the provided name.
@@ -228,6 +231,10 @@ func NewWorld(areasPath string) (*World, error) {
 	if err != nil {
 		return nil, err
 	}
+	quests, err := loadQuestData(areasPath)
+	if err != nil {
+		return nil, err
+	}
 	return &World{
 		rooms:         rooms,
 		players:       make(map[string]*Player),
@@ -236,6 +243,8 @@ func NewWorld(areasPath string) (*World, error) {
 		roomSources:   sources,
 		roomHistories: newRoomHistories(rooms),
 		builderPath:   filepath.Join(areasPath, builderAreaFile),
+		quests:        quests,
+		questsByNPC:   indexQuestsByNPC(quests),
 	}, nil
 }
 
@@ -247,6 +256,7 @@ func NewWorldWithRooms(rooms map[RoomID]*Room) *World {
 		playerOrder:   make([]string, 0),
 		roomSources:   make(map[RoomID]string, len(rooms)),
 		roomHistories: newRoomHistories(rooms),
+		quests:        make(map[string]*Quest),
 	}
 }
 
@@ -1206,6 +1216,7 @@ type NPCDamageResult struct {
 	NPC      NPC
 	Damage   int
 	Defeated bool
+	Loot     []Item
 }
 
 // PlayerDamageResult describes the outcome of damaging a player.
@@ -1243,9 +1254,16 @@ func (w *World) ApplyDamageToNPC(room RoomID, name string, damage int) (*NPCDama
 	}
 	npc.Health -= damage
 	defeated := npc.Health <= 0
-	result := &NPCDamageResult{NPC: npc, Damage: damage, Defeated: defeated}
+	loot := make([]Item, len(npc.Loot))
+	if len(npc.Loot) > 0 {
+		copy(loot, npc.Loot)
+	}
+	result := &NPCDamageResult{NPC: npc, Damage: damage, Defeated: defeated, Loot: loot}
 	if defeated {
 		npc.Health = 0
+		if len(loot) > 0 {
+			r.Items = append(r.Items, loot...)
+		}
 		r.NPCs = append(r.NPCs[:idx], r.NPCs[idx+1:]...)
 	} else {
 		r.NPCs[idx] = npc

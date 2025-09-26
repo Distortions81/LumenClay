@@ -31,6 +31,7 @@ type Player struct {
 	channelHistory   map[Channel][]ChannelLogEntry
 	channelHistoryMu sync.Mutex
 	MutedChannels    map[Channel]bool
+	QuestLog         map[string]*QuestProgress
 }
 
 // PlayerProfile captures persistent player state and preferences.

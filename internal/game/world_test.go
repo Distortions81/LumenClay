@@ -127,6 +127,36 @@ func TestWorldTakeItemPartialAmbiguous(t *testing.T) {
 	}
 }
 
+func TestApplyDamageToNPCLootDrops(t *testing.T) {
+	roomID := RoomID("arena")
+	loot := Item{Name: "Glittering Gem"}
+	world := &World{
+		rooms: map[RoomID]*Room{
+			roomID: {
+				ID:   roomID,
+				NPCs: []NPC{{Name: "Loot Goblin", Health: 10, MaxHealth: 10, Loot: []Item{loot}}},
+			},
+		},
+	}
+
+	result, err := world.ApplyDamageToNPC(roomID, "goblin", 20)
+	if err != nil {
+		t.Fatalf("ApplyDamageToNPC returned error: %v", err)
+	}
+	if !result.Defeated {
+		t.Fatalf("expected NPC to be defeated")
+	}
+	if len(result.Loot) != 1 || result.Loot[0].Name != loot.Name {
+		t.Fatalf("expected loot in result, got %+v", result.Loot)
+	}
+	if len(world.rooms[roomID].Items) != 1 || world.rooms[roomID].Items[0].Name != loot.Name {
+		t.Fatalf("expected loot dropped into room, got %+v", world.rooms[roomID].Items)
+	}
+	if len(world.rooms[roomID].NPCs) != 0 {
+		t.Fatalf("expected NPC removed after defeat")
+	}
+}
+
 func TestCloneRoomPopulationUnknownSource(t *testing.T) {
 	targetID := RoomID("target")
 	world := &World{
