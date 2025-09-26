@@ -139,6 +139,159 @@ func TestGotoMovesBuilder(t *testing.T) {
 	}
 }
 
+func TestTeleportRequiresBuilder(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"start": {
+			ID:          "start",
+			Title:       "Start",
+			Description: "Start room.",
+			Exits:       map[string]game.RoomID{"east": "second"},
+		},
+		"second": {
+			ID:          "second",
+			Title:       "Second",
+			Description: "Second room.",
+			Exits:       map[string]game.RoomID{"west": "start"},
+		},
+	})
+	player := newTestPlayer("Traveler", "start")
+	world.AddPlayerForTest(player)
+
+	if quit := Dispatch(world, player, "teleport second"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	if player.Room != "start" {
+		t.Fatalf("player should not have moved, room = %s", player.Room)
+	}
+	msgs := drainOutput(player.Output)
+	sawWarning := false
+	for _, msg := range msgs {
+		if strings.Contains(msg, "Only builders or admins may use teleport") {
+			sawWarning = true
+		}
+	}
+	if !sawWarning {
+		t.Fatalf("expected warning message, got %v", msgs)
+	}
+}
+
+func TestTeleportMovesBuilderToRoom(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"start": {
+			ID:          "start",
+			Title:       "Start",
+			Description: "Start room.",
+			Exits:       map[string]game.RoomID{"east": "second"},
+		},
+		"second": {
+			ID:          "second",
+			Title:       "Second",
+			Description: "Second room.",
+			Exits:       map[string]game.RoomID{"west": "start"},
+		},
+	})
+	builder := newTestPlayer("Builder", "start")
+	builder.IsBuilder = true
+	witnessStart := newTestPlayer("Witness", "start")
+	witnessEnd := newTestPlayer("Watcher", "second")
+	world.AddPlayerForTest(builder)
+	world.AddPlayerForTest(witnessStart)
+	world.AddPlayerForTest(witnessEnd)
+
+	if quit := Dispatch(world, builder, "teleport second"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	if builder.Room != "second" {
+		t.Fatalf("builder.Room = %s, want second", builder.Room)
+	}
+
+	builderMsgs := drainOutput(builder.Output)
+	sawRoom := false
+	for _, msg := range builderMsgs {
+		if strings.Contains(msg, "Second room.") {
+			sawRoom = true
+		}
+	}
+	if !sawRoom {
+		t.Fatalf("builder did not see destination room: %v", builderMsgs)
+	}
+
+	startMsgs := drainOutput(witnessStart.Output)
+	sawVanish := false
+	for _, msg := range startMsgs {
+		if strings.Contains(msg, "vanishes in a shimmer of light") {
+			sawVanish = true
+		}
+	}
+	if !sawVanish {
+		t.Fatalf("start witness did not see departure: %v", startMsgs)
+	}
+
+	endMsgs := drainOutput(witnessEnd.Output)
+	sawArrival := false
+	for _, msg := range endMsgs {
+		if strings.Contains(msg, "appears in a shimmer of light") {
+			sawArrival = true
+		}
+	}
+	if !sawArrival {
+		t.Fatalf("end witness did not see arrival: %v", endMsgs)
+	}
+}
+
+func TestTeleportMovesBuilderToPlayer(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"start": {
+			ID:          "start",
+			Title:       "Start",
+			Description: "Start room.",
+			Exits:       map[string]game.RoomID{"east": "second"},
+		},
+		"second": {
+			ID:          "second",
+			Title:       "Second",
+			Description: "Second room.",
+			Exits:       map[string]game.RoomID{"west": "start"},
+		},
+	})
+	builder := newTestPlayer("Builder", "start")
+	builder.IsBuilder = true
+	target := newTestPlayer("Target", "second")
+	observer := newTestPlayer("Observer", "second")
+	world.AddPlayerForTest(builder)
+	world.AddPlayerForTest(target)
+	world.AddPlayerForTest(observer)
+
+	if quit := Dispatch(world, builder, "teleport Target"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	if builder.Room != "second" {
+		t.Fatalf("builder.Room = %s, want second", builder.Room)
+	}
+
+	targetMsgs := drainOutput(target.Output)
+	sawArrival := false
+	for _, msg := range targetMsgs {
+		if strings.Contains(msg, "appears in a shimmer of light next to Target") {
+			sawArrival = true
+		}
+	}
+	if !sawArrival {
+		t.Fatalf("target did not see arrival message: %v", targetMsgs)
+	}
+
+	observerMsgs := drainOutput(observer.Output)
+	sawArrival = false
+	for _, msg := range observerMsgs {
+		if strings.Contains(msg, "appears in a shimmer of light next to Target") {
+			sawArrival = true
+		}
+	}
+	if !sawArrival {
+		t.Fatalf("observer did not see arrival message: %v", observerMsgs)
+	}
+}
+
 func TestSummonMovesTarget(t *testing.T) {
 	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
 		"start": {
