@@ -25,7 +25,7 @@ var Dig = Define(Definition{
 	parts := strings.Fields(args)
 	id := parts[0]
 	title := strings.TrimSpace(strings.TrimPrefix(args, id))
-	room, err := ctx.World.CreateRoom(game.RoomID(id), title)
+	room, err := ctx.World.CreateRoom(game.RoomID(id), title, ctx.Player.Name)
 	if err != nil {
 		ctx.Player.Output <- game.Ansi(game.Style("\r\n"+err.Error(), game.AnsiYellow))
 		return false
