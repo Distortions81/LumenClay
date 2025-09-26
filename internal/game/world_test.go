@@ -741,3 +741,21 @@ func TestListPlayersUsesLoginOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestWorldCommandDisableToggle(t *testing.T) {
+	world := NewWorldWithRooms(nil)
+	if world.CommandDisabled("say") {
+		t.Fatalf("command should not be disabled by default")
+	}
+	world.SetCommandDisabled("say", true)
+	if !world.CommandDisabled("say") {
+		t.Fatalf("command should be disabled")
+	}
+	if !world.CommandDisabled("SAY") {
+		t.Fatalf("command lookup should be case insensitive")
+	}
+	world.SetCommandDisabled("say", false)
+	if world.CommandDisabled("say") {
+		t.Fatalf("command should be enabled")
+	}
+}

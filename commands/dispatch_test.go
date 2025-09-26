@@ -102,6 +102,56 @@ func TestDispatchSayBroadcastsToRoomChannel(t *testing.T) {
 	}
 }
 
+func TestDispatchRespectsDisabledCommands(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"hall": {
+			ID:          "hall",
+			Title:       "Hall",
+			Description: "An empty hall.",
+			Exits:       map[string]game.RoomID{},
+		},
+	})
+	speaker := newTestPlayer("Speaker", "hall")
+	world.AddPlayerForTest(speaker)
+
+	world.SetCommandDisabled("say", true)
+
+	if quit := Dispatch(world, speaker, "say hello"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+
+	msgs := drainOutput(speaker.Output)
+	if len(msgs) == 0 {
+		t.Fatalf("expected output, got none")
+	}
+	sawWarning := false
+	for _, msg := range msgs {
+		if strings.Contains(msg, "command is temporarily disabled") {
+			sawWarning = true
+			break
+		}
+	}
+	if !sawWarning {
+		t.Fatalf("expected disabled warning, got %v", msgs)
+	}
+
+	world.SetCommandDisabled("say", false)
+	if quit := Dispatch(world, speaker, "say hello again"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	msgs = drainOutput(speaker.Output)
+	sawEcho := false
+	for _, msg := range msgs {
+		if strings.Contains(msg, "You say: hello again") {
+			sawEcho = true
+			break
+		}
+	}
+	if !sawEcho {
+		t.Fatalf("expected say output after enabling, got %v", msgs)
+	}
+}
+
 func TestDispatchSayStripsUnsafeCharacters(t *testing.T) {
 	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
 		"hall": {
