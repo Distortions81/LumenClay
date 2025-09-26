@@ -759,3 +759,83 @@ func TestWorldCommandDisableToggle(t *testing.T) {
 		t.Fatalf("command should be enabled")
 	}
 }
+
+func TestWorldDeliverOfflineTells(t *testing.T) {
+	world := NewWorldWithRooms(map[RoomID]*Room{
+		"hall": {
+			ID:          "hall",
+			Title:       "Hall",
+			Description: "A quiet hall.",
+			Exits:       map[string]RoomID{},
+		},
+	})
+	tells, err := NewTellSystem("")
+	if err != nil {
+		t.Fatalf("NewTellSystem: %v", err)
+	}
+	world.AttachTellSystem(tells)
+
+	dir := t.TempDir()
+	accounts, err := NewAccountManager(filepath.Join(dir, "accounts.json"))
+	if err != nil {
+		t.Fatalf("NewAccountManager: %v", err)
+	}
+	if err := accounts.Register("Friend", "password"); err != nil {
+		t.Fatalf("register Friend: %v", err)
+	}
+	if err := accounts.Register("Sender", "password"); err != nil {
+		t.Fatalf("register Sender: %v", err)
+	}
+	world.AttachAccountManager(accounts)
+
+	sender := &Player{
+		Name:     "Sender",
+		Room:     "hall",
+		Home:     "hall",
+		Output:   make(chan string, 8),
+		Alive:    true,
+		Channels: DefaultChannelSettings(),
+	}
+	world.AddPlayerForTest(sender)
+
+	if _, _, err := world.QueueOfflineTell(sender, "Friend", "Meet me under the lantern"); err != nil {
+		t.Fatalf("QueueOfflineTell: %v", err)
+	}
+
+	friend := &Player{
+		Name:     "Friend",
+		Room:     "hall",
+		Home:     "hall",
+		Output:   make(chan string, 8),
+		Alive:    true,
+		Channels: DefaultChannelSettings(),
+	}
+	world.AddPlayerForTest(friend)
+
+	world.DeliverOfflineTells(friend)
+
+	var first string
+	select {
+	case first = <-friend.Output:
+	default:
+		t.Fatalf("friend did not receive offline tell output")
+	}
+	if !strings.Contains(first, "You have 1 offline tell") {
+		t.Fatalf("header missing: %q", first)
+	}
+	if !strings.Contains(first, "Sender") || !strings.Contains(first, "Meet me under the lantern") {
+		t.Fatalf("message missing: %q", first)
+	}
+	var prompt string
+	select {
+	case prompt = <-friend.Output:
+	default:
+		t.Fatalf("friend did not receive prompt after offline tells")
+	}
+	if !strings.Contains(prompt, ">") {
+		t.Fatalf("prompt not received: %q", prompt)
+	}
+	if pending := tells.PendingFor("Friend"); len(pending) != 0 {
+		t.Fatalf("offline tells should be cleared, got %#v", pending)
+	}
+}

@@ -191,6 +191,7 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager, dispatche
 	p.Output <- Ansi("Welcome, " + HighlightName(p.Name) + Style("!\r\n", AnsiMagenta))
 	p.Output <- Ansi(Style(postLoginPrompt+"\r\n", AnsiGreen))
 	EnterRoom(world, p, "")
+	world.DeliverOfflineTells(p)
 
 	_ = conn.SetReadDeadline(time.Time{})
 
@@ -288,6 +289,13 @@ func listenAndServe(addr, accountsPath, areasPath, adminAccount string, dispatch
 		return err
 	}
 	world.AttachMailSystem(mail)
+
+	tellsPath := filepath.Join(filepath.Dir(accountsPath), "tells.json")
+	tells, err := NewTellSystem(tellsPath)
+	if err != nil {
+		return err
+	}
+	world.AttachTellSystem(tells)
 
 	var ln net.Listener
 	if cfg.enableTLS {

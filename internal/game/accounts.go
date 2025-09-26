@@ -312,3 +312,28 @@ func (a *AccountManager) Stats(name string) (AccountStats, bool) {
 		TotalLogins: record.TotalLogins,
 	}, true
 }
+
+// MatchAccountName resolves the provided token to a registered account name using case-insensitive matching.
+func (a *AccountManager) MatchAccountName(token string) (string, bool) {
+	trimmed := strings.TrimSpace(token)
+	if trimmed == "" {
+		return "", false
+	}
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	if _, ok := a.accounts[trimmed]; ok {
+		return trimmed, true
+	}
+	if len(a.accounts) == 0 {
+		return "", false
+	}
+	names := make([]string, 0, len(a.accounts))
+	for name := range a.accounts {
+		names = append(names, name)
+	}
+	idx, ok := uniqueMatch(trimmed, names, false)
+	if !ok {
+		return "", false
+	}
+	return names[idx], true
+}
