@@ -1,0 +1,299 @@
+{
+  "name": "Celestial Observatory",
+  "rooms": [
+    {
+      "id": "observatory_plaza",
+      "title": "Horizon Plaza",
+      "description": "A broad terrace of glazed basalt opens to the sky, its surface etched with concentric star charts that glow when walked upon. Curved balustrades cradle orbs of suspended lumen, each projecting constellations that slowly rotate to match the real night above. Wind chimes tuned to planetary resonances stir in the gentle breeze, harmonizing with the distant hum of the city below.",
+      "exits": {
+        "s": "start_overlook",
+        "n": "observatory_rampart",
+        "e": "observatory_workspace",
+        "w": "observatory_arcade"
+      },
+      "items": [
+        {
+          "name": "Planetary Armillary",
+          "description": "Slender rings of copper orbit a luminous core, aligning themselves to mirror the positions of unseen moons."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Starcall Adept",
+          "auto_greet": "Mind your step—each stone remembers where the sky once opened."
+        }
+      ]
+    },
+    {
+      "id": "observatory_rampart",
+      "title": "Zephyr Rampart",
+      "description": "A narrow promenade curves along the observatory's outer wall, protected by a railing woven from translucent clay ribbons. From here, the districts of Lumen Clay unfurl like constellations rendered in architecture. Embedded lenses focus stray starlight into the walkway, leaving gentle trails that drift toward the dome entrance to the north.",
+      "exits": {
+        "s": "observatory_plaza",
+        "n": "observatory_dome",
+        "w": "observatory_reflection_pool"
+      },
+      "items": [
+        {
+          "name": "Skyward Pennant",
+          "description": "A banner of woven light that ripples in the wind yet never tangles, its colors shifting with the phases of the moon."
+        }
+      ]
+    },
+    {
+      "id": "observatory_dome",
+      "title": "Astral Scriptorium",
+      "description": "Inside the glassleaf dome, tiers of floating desks orbit a suspended aperture that peers directly into the astral sea. Charts drift like oversized snowflakes between tables, folding themselves into new projections whenever someone speaks a question aloud. A colossal focusing lens hangs overhead, refracting beams into threads that stitch new patterns into the dome.",
+      "exits": {
+        "s": "observatory_rampart",
+        "w": "observatory_workspace",
+        "n": "observatory_spire",
+        "e": "observatory_signal_gallery"
+      },
+      "items": [
+        {
+          "name": "Prismatic Quill",
+          "description": "A quill of condensed starlight that records thoughts as constellations across a sheet of shimmering vellum."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Archivist of Echoes",
+          "auto_greet": "Hush—the constellations are transcribing our conversation as we speak."
+        }
+      ]
+    },
+    {
+      "id": "observatory_workspace",
+      "title": "Lenswright Workshop",
+      "description": "This annex hums with the patient clatter of lenswrights polishing crystalline disks in levitating clamps. Racks of clay frames await fresh glass, while a kiln of pure light melts sand into liquid mirrors that pour without heat. Notes about recent celestial events are pinned to a wall-sized chart using anchors of magnetic stone.",
+      "exits": {
+        "w": "observatory_plaza",
+        "e": "observatory_dome",
+        "n": "observatory_resonance_vault"
+      },
+      "items": [
+        {
+          "name": "Calibration Prism",
+          "description": "A multifaceted prism that snaps into focus when held toward the sky, aligning any lens to the desired star."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Lenswright Mara",
+          "auto_greet": "If you find a mote of dust, return it—it may have wandered in from a comet."
+        }
+      ]
+    },
+    {
+      "id": "observatory_arcade",
+      "title": "Arcade of Shifting Sundials",
+      "description": "A sheltered corridor of slender arches runs along the observatory's outer rim. Embedded sundials tilt their faces with the drifting sun, painting bands of light across the walkway.",
+      "exits": {
+        "e": "observatory_plaza",
+        "n": "observatory_reflection_pool"
+      },
+      "items": [
+        {
+          "name": "Solar Abacus",
+          "description": "Beads of prismed glass slide into fresh equations as the ambient light shifts, calculating stellar alignments for the lenswrights."
+        }
+      ]
+    },
+    {
+      "id": "observatory_reflection_pool",
+      "title": "Noctilucent Reflecting Pool",
+      "description": "A shallow pool of liquid starlight mirrors the sky with impossible fidelity. Ripples reveal faint afterimages of constellations yet to rise.",
+      "exits": {
+        "s": "observatory_arcade",
+        "e": "observatory_rampart",
+        "u": "observatory_spire"
+      },
+      "items": [
+        {
+          "name": "Tideglass Petals",
+          "description": "Glassblown lilies float on the surface, blooming with memories of eclipses when touched."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Hydromancer Vele",
+          "auto_greet": "Careful—every ripple writes a new prediction across the stars above."
+        }
+      ]
+    },
+    {
+      "id": "observatory_spire",
+      "title": "Aurora Spire",
+      "description": "An open-air platform crowns a slender spire, its railing braided from auroral ribbons that shimmer in constant motion. The whole tower hums softly as if inhaling the cosmos.",
+      "exits": {
+        "d": "observatory_reflection_pool",
+        "s": "observatory_dome",
+        "e": "observatory_signal_gallery",
+        "u": "observatory_heliograph_gallery"
+      },
+      "items": [
+        {
+          "name": "Starward Compass",
+          "description": "The needle favors the brightest constellation in sight, tugging gently toward unexplored horizons."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Skychart Navigator",
+          "auto_greet": "Can you feel the pull? The constellations are drafting tonight's itinerary."
+        }
+      ]
+    },
+    {
+      "id": "observatory_heliograph_gallery",
+      "title": "Heliograph Gallery",
+      "description": "Slender bridges lace between antennae of mirrored clay, each tilted to snare distant starfire and relay it below. Brass shutters click softly as they focus, sending glissandos of light toward the workshops beneath.",
+      "exits": {
+        "d": "observatory_spire",
+        "u": "observatory_astrophysicist_office",
+        "w": "observatory_chart_vault"
+      },
+      "items": [
+        {
+          "name": "Signal Tuning Fork",
+          "description": "When struck, the fork blooms with steady beams that align the heliographs to the brightest star on the horizon."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Lightcaster's Echo",
+          "auto_greet": "Mind the shutters—each note of light carries a message waiting to be returned."
+        }
+      ]
+    },
+    {
+      "id": "observatory_chart_vault",
+      "title": "Chart Vault Walkway",
+      "description": "A hushed ledge traces the tower wall, flanked by cabinets stuffed with rolled star maps sealed in glassine tubes. Windows frame the city far below, the view annotated with quill-sketched constellations hovering in the air.",
+      "exits": {
+        "e": "observatory_heliograph_gallery"
+      },
+      "items": [
+        {
+          "name": "Constellation Lattice",
+          "description": "An intricate web of silver thread that rearranges itself to highlight whichever star a traveler names aloud."
+        }
+      ]
+    },
+    {
+      "id": "observatory_astrophysicist_office",
+      "title": "Professor Orrin's Loft",
+      "description": "Shelves of weathered clay tablets and drifting parchment orbits surround a crescent desk carved from meteor stone. A faint smell of tea and ozone lingers while delicate models of planetary harmonics spin lazily overhead.",
+      "exits": {
+        "d": "observatory_heliograph_gallery",
+        "u": "observatory_beaconry"
+      },
+      "items": [
+        {
+          "name": "Meteoric Letter Opener",
+          "description": "Fashioned from a fragment of comet iron, it hums whenever a new celestial discovery is penned nearby."
+        },
+        {
+          "name": "Chrono-Tea Service",
+          "description": "A kettle and cups etched with orbital paths that warm themselves precisely when eclipse calculations are due."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Professor Orrin Aster",
+          "auto_greet": "Ah, a visitor! Tell me—have the stars been courteous tonight, or must I file another complaint?"
+        }
+      ]
+    },
+    {
+      "id": "observatory_beaconry",
+      "title": "Beaconry of Returning Stars",
+      "description": "Glassleaf lanterns hang in concentric halos, flaring whenever a comet's tail brushes the city's warding nets. Each glow stains the night with a returning traveler's hue.",
+      "exits": {
+        "d": "observatory_spire"
+      },
+      "items": [
+        {
+          "name": "Comet Ledger",
+          "description": "Ink of captured meteor dust tracks every celestial visitor, updating itself with radiant annotations."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Beacon Keeper Iress",
+          "auto_greet": "Stand close—the lanterns speak of which travelers will find their way home tonight."
+        }
+      ]
+    },
+    {
+      "id": "observatory_signal_gallery",
+      "title": "Gallery of Silent Signals",
+      "description": "Vaulted alcoves cradle instruments tuned to starlight frequencies. Hushed chords drift as rotating prisms translate distant pulses into luminous script.",
+      "exits": {
+        "w": "observatory_dome",
+        "nw": "observatory_spire",
+        "d": "observatory_starwell"
+      },
+      "items": [
+        {
+          "name": "Luminous Cipher Wheel",
+          "description": "Nested rings of etched crystal decode stellar pulses into strings of soft chimes."
+        }
+      ]
+    },
+    {
+      "id": "observatory_starwell",
+      "title": "Starwell Descent",
+      "description": "A spiral stair carved from midnight stone winds around a shaft of captured starlight. Each step sings a different note, mapping a descending scale into the air.",
+      "exits": {
+        "u": "observatory_signal_gallery",
+        "s": "observatory_resonance_vault",
+        "d": "observatory_underchamber"
+      },
+      "items": [
+        {
+          "name": "Gravitic Pendulum",
+          "description": "A pendulum traces glowing arcs in the air, mapping the city's tides of magic with every swing."
+        }
+      ]
+    },
+    {
+      "id": "observatory_resonance_vault",
+      "title": "Resonance Vault",
+      "description": "Cylindrical chambers line the walls, each filled with harmonic sand that hums in sympathy with celestial notes. Resonant waves shimmer through the floor with every footfall.",
+      "exits": {
+        "n": "observatory_starwell",
+        "s": "observatory_workspace",
+        "w": "observatory_underchamber"
+      },
+      "items": [
+        {
+          "name": "Chorded Crucible",
+          "description": "A crucible that resonates when nearby rooms align in harmony, tempering lenses with sustained notes."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Resonant Custodian",
+          "auto_greet": "Match the pitch in your chest—the vault only shares its secrets with those in tune."
+        }
+      ]
+    },
+    {
+      "id": "observatory_underchamber",
+      "title": "Gravity Underchamber",
+      "description": "Here the observatory anchors into the city's bones. Suspended counterweights drift like lazy moons, keeping the entire complex in gentle equilibrium.",
+      "exits": {
+        "u": "observatory_starwell",
+        "e": "observatory_resonance_vault"
+      },
+      "items": [
+        {
+          "name": "Inverted Astrolabe",
+          "description": "This astrolabe hangs upside down, charting the unseen constellations that lie beneath the city's horizon."
+        }
+      ]
+    }
+  ]
+}

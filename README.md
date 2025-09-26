@@ -94,6 +94,8 @@ After logging in, type `help` (or `?`) to see the in-game reference. Common comm
 - `buildhelp` (builders/admins) &mdash; List the online creation commands available to builders.
 - `wizhelp` (admin only) &mdash; List administrative commands such as `reboot` and `summon`.
 
+Climb to the Glazemaker's Overlook from the starting atrium and head north to reach the new Celestial Observatory. There you'll find the Horizon Plaza, Zephyr Rampart, Astral Scriptorium, and the Lenswright Workshop, now joined by the Arcade of Shifting Sundials, a noctilucent reflecting pool, and an expanded vertical circuit that threads through the Aurora Spire, its heliograph gallery, a chart vault walkway, and the tea-scented loft of Professor Orrin before cresting at the beaconry. The subterranean Starwell, Resonance Vault, and Gravity Underchamber remain below, rounding out a sky-struck ascent packed with NPCs and artifacts.
+
 ## Extending the world data
 
 World rooms and areas are defined in JSON files stored under [`data/areas/`](data/areas/). Each file contains an object with a descriptive `name` and a list of `rooms`. Every room entry must provide:

@@ -41,7 +41,8 @@
       "description": "A sloped ramp of vitrified clay climbs to a balcony ringed with prism spires. From here the entire atrium gleams like a living kiln, its shifting hues mirrored in a suspended basin of liquid glass above. Hushed voices drift from artisans tracing designs into hanging light-sheets, their patterns forming new guild sigils in mid-air.",
       "exits": {
         "d": "start",
-        "ne": "start_gallery"
+        "ne": "start_gallery",
+        "n": "observatory_plaza"
       },
       "items": [
         {
