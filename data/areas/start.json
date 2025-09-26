@@ -1,30 +1,103 @@
 {
-  "name": "World Entrance",
+  "name": "Lumen Clay Convergence",
   "rooms": [
     {
       "id": "start",
-      "title": "Worn Stone Landing",
-      "description": "You stand on a time-polished stone platform. Four archways lead to shadowed corridors: north (the library), east (the workshop), south (the garden), west (the market).",
+      "title": "Luminal Confluence",
+      "description": "The atrium blooms like a kiln-flower in mid-ignite, petals of fired clay suspended in the air by threads of slow-moving light. Translucent veins of azure lumen pulse beneath your feet, warming the inlaid mosaic that charts the four surrounding districts. Pillared arcades shimmer to the north, east, south, and west—each arch banded with glyphs that name the library, workshop, garden, and market beyond. Overhead, a lattice of glassleaf panels refracts gentle daylight into motes that drift like curious fireflies, while a low, resonant hum rises from the vents of an unseen crucible below.",
       "exits": {
         "e": "workshop",
         "n": "library",
         "s": "garden",
-        "w": "market"
+        "w": "market",
+        "u": "start_overlook",
+        "d": "start_reservoir",
+        "nw": "start_archive"
       },
       "items": [
         {
-          "name": "Weathered Compass",
-          "description": "Its needle spins lazily, pointing toward adventures yet untaken."
+          "name": "Chorale Crucible",
+          "description": "A waist-high vessel of porous clay sings a soft three-note chord whenever someone steps near, sending ripples of light racing through the floor mosaic."
         },
         {
-          "name": "Folded Map",
-          "description": "Ink sketches reveal hints about the four neighboring districts."
+          "name": "Lumen Petals",
+          "description": "Fragments of fired porcelain float lazily in the air, rotating to display etched stories of previous artisans who shaped the city."
+        },
+        {
+          "name": "Compass of Embers",
+          "description": "This bronze compass bears four glowing arrows that brighten when pointed toward the districts they represent, inviting exploration."
         }
       ],
       "npcs": [
         {
-          "name": "Stone Guide",
-          "auto_greet": "Welcome to the crossroads. Venture boldly, traveler!"
+          "name": "Glazecaller Ilyss",
+          "auto_greet": "Welcome, shaper of light. Let the clay remember your touch and the city will remember your name."
+        }
+      ]
+    },
+    {
+      "id": "start_overlook",
+      "title": "Glazemaker's Overlook",
+      "description": "A sloped ramp of vitrified clay climbs to a balcony ringed with prism spires. From here the entire atrium gleams like a living kiln, its shifting hues mirrored in a suspended basin of liquid glass above. Hushed voices drift from artisans tracing designs into hanging light-sheets, their patterns forming new guild sigils in mid-air.",
+      "exits": {
+        "d": "start",
+        "ne": "start_gallery"
+      },
+      "items": [
+        {
+          "name": "Harmonic Stylus",
+          "description": "A slim rod of polished obsidian that, when waved, leaves a lingering ribbon of color that slowly twists back into the ambient glow."
+        }
+      ]
+    },
+    {
+      "id": "start_gallery",
+      "title": "Gallery of Fired Memories",
+      "description": "Shelves carved directly from the wall cradle amphorae and tiles infused with bioluminescent glaze. Each piece flickers to life as you pass, reenacting the memory of its creation: hands shaping clay, sparks leaping, rain hissing against hot stone. The air tastes faintly of mineral rain and sweet kiln smoke.",
+      "exits": {
+        "sw": "start_overlook",
+        "s": "start"
+      },
+      "items": [
+        {
+          "name": "Memory Tile",
+          "description": "A warm tile that replays a vivid scene of apprentices rescuing a collapsed sculpture by weaving beams of light to hold it upright."
+        }
+      ]
+    },
+    {
+      "id": "start_reservoir",
+      "title": "Lumen Reservoir",
+      "description": "Descending beneath the atrium, you find a vaulted chamber where canals of liquid light circulate through terraced pools. Clay golems in various states of completion rest upon turning plinths, their hollows filling with glow as the reservoirs cycle. The gentle churn of lumen through porous stone creates a steady heartbeat for the city above.",
+      "exits": {
+        "u": "start",
+        "ne": "start_archive"
+      },
+      "items": [
+        {
+          "name": "Resonant Ladle",
+          "description": "A heavy ladle whose bowl traps a sphere of luminescence; when poured, it paints temporary sigils across the pool's surface."
+        }
+      ]
+    },
+    {
+      "id": "start_archive",
+      "title": "Glyphwork Archive",
+      "description": "Narrow aisles wind between towering stacks of clay tablets, each etched with radiant grooves that drift like ink when read aloud. Whispered annotations from distant archivists answer your curiosity, their voices traveling along silver threads stretched between the shelves. An alcove contains a drafting table strewn with unfinished scripts awaiting new histories.",
+      "exits": {
+        "se": "start",
+        "sw": "start_reservoir"
+      },
+      "items": [
+        {
+          "name": "Scriptor's Prism",
+          "description": "A multifaceted prism that reveals hidden notes when its light is cast through the glyphs on any tablet."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Archivist Thalen",
+          "auto_greet": "Careful with the tablets—every line is a promise the clay agreed to keep."
         }
       ]
     }
