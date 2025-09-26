@@ -68,7 +68,7 @@ func TestDispatchGoMovesPlayerAndNotifiesRooms(t *testing.T) {
 	if !sawGreeter {
 		t.Fatalf("hero did not see other players: %v", heroMsgs)
 	}
-	if heroMsgs[len(heroMsgs)-1] != ">" {
+	if !isPrompt(heroMsgs[len(heroMsgs)-1]) {
 		t.Fatalf("last hero message = %q, want prompt", heroMsgs[len(heroMsgs)-1])
 	}
 }
@@ -461,7 +461,7 @@ func TestRecallReturnsPlayerHome(t *testing.T) {
 		if strings.Contains(msg, "answer the call of home") {
 			sawCall = true
 		}
-		if msg == ">" {
+		if isPrompt(msg) {
 			sawPrompt = true
 		}
 	}
@@ -524,4 +524,8 @@ func drainOutput(ch chan string) []string {
 			return t
 		}
 	}
+}
+
+func isPrompt(msg string) bool {
+	return strings.Contains(msg, "] >")
 }
