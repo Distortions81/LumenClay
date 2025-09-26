@@ -50,6 +50,11 @@ func HighlightItemName(name string) string {
 	return Style(name, AnsiBold, AnsiYellow)
 }
 
+// HighlightQuestName formats quest titles consistently.
+func HighlightQuestName(name string) string {
+	return Style(name, AnsiBold, AnsiBlue)
+}
+
 // Trim normalises a telnet input line.
 func Trim(s string) string {
 	cleaned := sanitizeInput(s)

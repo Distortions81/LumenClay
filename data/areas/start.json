@@ -78,6 +78,21 @@
           "name": "Resonant Ladle",
           "description": "A heavy ladle whose bowl traps a sphere of luminescence; when poured, it paints temporary sigils across the pool's surface."
         }
+      ],
+      "npcs": [
+        {
+          "name": "Ember Warden",
+          "auto_greet": "The kiln-mask of the warden flares with warning embers as it measures your intent.",
+          "level": 2,
+          "health": 55,
+          "max_health": 55,
+          "loot": [
+            {
+              "name": "Resonant Core",
+              "description": "A fist-sized crystal humming with the reservoir's tempered light."
+            }
+          ]
+        }
       ]
     },
     {
