@@ -14,11 +14,12 @@ func EnterRoom(world *World, p *Player, via string) {
 		p.Output <- Ansi(Style("\r\nYou seem to be nowhere.", AnsiYellow))
 		return
 	}
+	width, _ := p.WindowSize()
 	if via != "" {
 		world.BroadcastToRoom(p.Room, Ansi(fmt.Sprintf("\r\n%s arrives from %s.", HighlightName(p.Name), via)), p)
 	}
 	title := Style(r.Title, AnsiBold, AnsiCyan)
-	desc := Style(r.Description, AnsiItalic, AnsiDim)
+	desc := Style(WrapText(r.Description, width), AnsiItalic, AnsiDim)
 	exits := Style(ExitList(r), AnsiGreen)
 	p.Output <- Ansi(fmt.Sprintf("\r\n\r\n%s\r\n%s\r\nExits: %s", title, desc, exits))
 	others := world.ListPlayers(true, p.Room)
