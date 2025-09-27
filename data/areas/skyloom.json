@@ -1,0 +1,119 @@
+{
+  "name": "Skyloom Array",
+  "rooms": [
+    {
+      "id": "skyloom_gateway",
+      "title": "Skyloom Gantry",
+      "description": "A narrow gantry arcs from the observatory beaconry into open air, latticed strands of light forming a swaying bridge. Gusts carry the scent of ozone while thin threads tighten beneath each careful step.",
+      "exits": {
+        "d": "observatory_beaconry",
+        "n": "skyloom_weaving_deck",
+        "e": "skyloom_listening_web"
+      },
+      "items": [
+        {
+          "name": "Beacon Anchor Spike",
+          "description": "Hammered from auroral alloy, it fastens skyloom strands to any surface without piercing the clay."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Beacon Runner Tiale",
+          "auto_greet": "Step light! The loom reads every footfall and spins a thread to match."
+        }
+      ]
+    },
+    {
+      "id": "skyloom_weaving_deck",
+      "title": "Weaving Deck",
+      "description": "Spacious platforms drift around a central spindle, each populated by artisans braiding luminous fibers into signal banners. The air hums with the resonance of distant lanterns answering their patterns.",
+      "exits": {
+        "s": "skyloom_gateway",
+        "e": "skyloom_current_chamber"
+      },
+      "items": [
+        {
+          "name": "Skyloom Filament",
+          "description": "A strand of woven light harvested from the upper air currents; it thrums eagerly when exposed to music."
+        },
+        {
+          "name": "Stormglass Shuttle",
+          "description": "A shuttle carved from storm-tempered glass that leaves sparking trails as it passes through the loom."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Windwright Seret",
+          "auto_greet": "We're braiding tonight's warning chorale. Have you any spare harmonies to lend?"
+        }
+      ]
+    },
+    {
+      "id": "skyloom_listening_web",
+      "title": "Listening Web",
+      "description": "Dozens of taut threads spread outward like a spider's web, each vibrating with weather songs drifting from the horizon. Crystal bells dangle from junctions, translating the vibrations into readable chord progressions.",
+      "exits": {
+        "w": "skyloom_gateway",
+        "n": "skyloom_current_chamber"
+      },
+      "items": [
+        {
+          "name": "Horizon Tone Archive",
+          "description": "A compact cube storing layered audio glyphs that replay stormfront signatures when unfolded."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Tempest Whisper",
+          "auto_greet": "The gale is restless. Offer silence or it will take it from us."
+        }
+      ]
+    },
+    {
+      "id": "skyloom_current_chamber",
+      "title": "Current Chamber",
+      "description": "Coils of aeriform clay revolve within translucent housings, redistributing wind and light across the array. Surge gauges flicker in cascading colors, indicating where reinforcement threads must be spun next.",
+      "exits": {
+        "w": "skyloom_weaving_deck",
+        "s": "skyloom_listening_web",
+        "u": "skyloom_beacon_array"
+      },
+      "items": [
+        {
+          "name": "Skyloom Filament",
+          "description": "This spool bristles with charged fibers ready to be woven into a stabilizing chorus."
+        },
+        {
+          "name": "Cyclone Resonator",
+          "description": "A handheld device that captures stray gusts and converts them into gentle harmonics for the loom."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Skyloom Sentry",
+          "auto_greet": "Stabilization protocols engaged. Present your weaving charter or depart."
+        }
+      ]
+    },
+    {
+      "id": "skyloom_beacon_array",
+      "title": "Beacon Choir Array",
+      "description": "A ring of lanterns circles the array's summit, each singing a steady tone that blends into a luminous chord. The city stretches below, its districts responding with faint echoes that ripple up the loom's strands.",
+      "exits": {
+        "d": "skyloom_current_chamber"
+      },
+      "items": [
+        {
+          "name": "Choir Conductor's Baton",
+          "description": "The baton carries a microfilament core that remembers the rhythm of every beacon it commands."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Choirmistress Valyn",
+          "auto_greet": "Hold steady and breathe with the lanterns; we'll stitch a return path for every traveler tonight."
+        }
+      ]
+    }
+  ]
+}

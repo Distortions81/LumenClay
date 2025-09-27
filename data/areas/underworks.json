@@ -1,0 +1,196 @@
+{
+  "name": "Resonant Underworks",
+  "rooms": [
+    {
+      "id": "underworks_throat",
+      "title": "Echoing Throat",
+      "description": "The descent opens into a ribbed shaft where dripstone columns sing as condensation falls. Veins of lumen seep through the porous clay, tracing trembling patterns that reveal the undercity's forgotten aqueducts.",
+      "exits": {
+        "u": "start_resonance_walk",
+        "e": "underworks_forum",
+        "d": "underworks_dripstone"
+      },
+      "items": [
+        {
+          "name": "Underwork Survey Record",
+          "description": "A clay tablet impressed with fresh resonance readings that glow brighter when carried toward uncharted tunnels."
+        },
+        {
+          "name": "Echo Lantern Cage",
+          "description": "Slender ribs of copper weave around a lumen mote, dampening wild harmonics while guiding explorers safely through the dark."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Clay Sifter Jano",
+          "auto_greet": "Mind your footing—the stones hum the warnings long before they crumble."
+        }
+      ]
+    },
+    {
+      "id": "underworks_forum",
+      "title": "Forum of Resonant Hands",
+      "description": "A circular chamber ringed with benches carved from petrified waveforms. Artisans confer in hushed chords while suspended diagrams show the ebb and surge of the city's hidden lumen rivers.",
+      "exits": {
+        "w": "underworks_throat",
+        "e": "underworks_kiln",
+        "s": "underworks_archive",
+        "n": "underworks_listening_garden"
+      },
+      "items": [
+        {
+          "name": "Chord Masonry Plans",
+          "description": "Blueprints of vaulted supports that vibrate with a steady bass note when aligned correctly underground."
+        },
+        {
+          "name": "Resonant Council Seal",
+          "description": "A palm-sized sigil that pulses gently, granting safe passage past the underworks sentries."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Master of Echoes Neral",
+          "auto_greet": "The city's heartbeat stutters below us. Help me map where the rhythm falters."
+        },
+        {
+          "name": "Cantor Myrene",
+          "auto_greet": "I lend my voice here when the springs need calming. Listen—the underworks hum your arrival."
+        }
+      ]
+    },
+    {
+      "id": "underworks_listening_garden",
+      "title": "Listening Garden",
+      "description": "Bioluminescent moss carpets terraced pools, soaking up stray vibrations and releasing them as slow chorales. Chime seeds dangle from the ceiling, ready to sprout guiding tones when planted elsewhere in the city.",
+      "exits": {
+        "s": "underworks_forum",
+        "e": "underworks_kiln"
+      },
+      "items": [
+        {
+          "name": "Chime Seedling",
+          "description": "A tiny pod that sings back the purest note it has heard, perfect for tuning new pathways."
+        },
+        {
+          "name": "Underwork Survey Record",
+          "description": "This tablet charts the harmonic bloom of the garden, crucial for predicting resonance surges." 
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Gardener of Tones",
+          "auto_greet": "Take what melodies you need—the moss grows richer with every shared song."
+        }
+      ]
+    },
+    {
+      "id": "underworks_dripstone",
+      "title": "Dripstone Galleries",
+      "description": "Narrow corridors wind between stalactite curtains that flicker with responsive light. Water droplets strike tuned basins, creating a steady pattern of notes that doubles as a navigational code.",
+      "exits": {
+        "u": "underworks_throat",
+        "n": "underworks_archive"
+      },
+      "items": [
+        {
+          "name": "Underwork Survey Record",
+          "description": "A spiral-etched shard documenting the dripstone frequencies that shield the galleries from collapse."
+        },
+        {
+          "name": "Seismographic Coil",
+          "description": "Copper wire wound around lumen crystals, twitching toward any hollow chamber that resonates nearby."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Echo Diver Pellan",
+          "auto_greet": "Lower your torch and follow the beat—even darkness dances to a rhythm here."
+        }
+      ]
+    },
+    {
+      "id": "underworks_archive",
+      "title": "Archive of Settled Waves",
+      "description": "Shelves of clay tablets float in lazy circles, each storing the waveform of a crisis long soothed. Crystalline pendulums swing overhead, translating past solutions into new guidance for today's repairs.",
+      "exits": {
+        "n": "underworks_forum",
+        "s": "underworks_reservoir",
+        "w": "underworks_dripstone"
+      },
+      "items": [
+        {
+          "name": "Resonant Memory Ampoule",
+          "description": "A sealed vial that releases a chorus of voices recounting how a past breach was repaired."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Archivist Thera",
+          "auto_greet": "Every problem echoes. Tell me yours and we'll find its ancestor among the shelves."
+        }
+      ]
+    },
+    {
+      "id": "underworks_kiln",
+      "title": "Harmonic Kilnworks",
+      "description": "A half-buried kiln thrums with alternating heat and chill as lumen channels pour through latticed molds. Golems of tempered clay stand ready to carry stabilized cores back to the atrium above.",
+      "exits": {
+        "w": "underworks_forum",
+        "s": "underworks_reservoir",
+        "e": "underworks_resonant_sequencer"
+      },
+      "items": [
+        {
+          "name": "Stabilizing Crucible",
+          "description": "An insulated vessel that condenses turbulent energy into a manageable glow."
+        },
+        {
+          "name": "Kilnwright's Notes",
+          "description": "Margin-scribbled formulas for weaving clay baffles that soothe the reservoir's violent surges."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Forge-Tender Rhun",
+          "auto_greet": "Keep the rhythm steady and the cores cool—that's how we keep the city breathing."
+        }
+      ]
+    },
+    {
+      "id": "underworks_resonant_sequencer",
+      "title": "Resonant Sequencer",
+      "description": "Rings of suspended stone spin in counterpoint, slicing turbulence into layered harmonies. Each completed sequence produces a soft chime and projects a map of where to redirect excess lumen.",
+      "exits": {
+        "w": "underworks_kiln"
+      },
+      "items": [
+        {
+          "name": "Sequencer Glyph Set",
+          "description": "A stack of tiles that, when arranged, coax lumen currents to dance in predetermined patterns."
+        }
+      ]
+    },
+    {
+      "id": "underworks_reservoir",
+      "title": "Surging Reservoir",
+      "description": "Here the lumen river boils within reinforced basins. Waves of light crash against carved buttresses, threatening to spill into the city's foundation unless carefully tuned.",
+      "exits": {
+        "n": "underworks_archive",
+        "e": "underworks_resonant_sequencer",
+        "w": "underworks_kiln"
+      },
+      "items": [
+        {
+          "name": "Stabilized Core",
+          "description": "A fist-sized crystalized lumen mass that beats in time with the city's restored rhythm."
+        }
+      ],
+      "npcs": [
+        {
+          "name": "Resonant Warden",
+          "auto_greet": "Unauthorized modulation detected. Initiating containment protocols."
+        }
+      ]
+    }
+  ]
+}

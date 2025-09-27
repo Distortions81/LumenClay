@@ -203,6 +203,7 @@
       "title": "Resonance Walk",
       "description": "Parallel channels of luminant water braid beneath a suspended walkway of translucent clay. Every stride sends harmonics along the rails, awakening murals that illustrate the city's hidden aquifers.",
       "exits": {
+        "d": "underworks_throat",
         "e": "start_planisphere",
         "n": "start_harmonic_chamber",
         "s": "start_reservoir",

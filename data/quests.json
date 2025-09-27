@@ -26,6 +26,81 @@
         }
       ],
       "completion_message": "Ilyss seals the core within a channeling prism and nods approvingly. \"The reservoir hums in balance once more.\""
+    },
+    {
+      "id": "chart_underworks",
+      "name": "Chart the Murmuring Veins",
+      "description": "Master of Echoes Neral needs fresh resonance surveys from the newly opened underworks to understand where the lumen tide is faltering.",
+      "giver": "Master of Echoes Neral",
+      "turn_in": "Master of Echoes Neral",
+      "required_items": [
+        {
+          "item": "Underwork Survey Record",
+          "count": 3
+        }
+      ],
+      "reward_xp": 90,
+      "reward_items": [
+        {
+          "name": "Underwork Cartographer's Loop",
+          "description": "A braided cord of resonance beads that glows when you near unmapped passages."
+        }
+      ],
+      "completion_message": "Neral layers the records across a spinning sequencer. \"With these choruses aligned we can calm the deeper pulses.\""
+    },
+    {
+      "id": "still_resonant_warden",
+      "name": "Still the Resonant Warden",
+      "description": "A rogue warden is amplifying turbulence within the surging reservoir. Defeat the construct and deliver its stabilized core to Neral before the underworks fracture.",
+      "giver": "Master of Echoes Neral",
+      "turn_in": "Master of Echoes Neral",
+      "required_kills": [
+        {
+          "npc": "Resonant Warden",
+          "count": 1
+        }
+      ],
+      "required_items": [
+        {
+          "item": "Stabilized Core",
+          "count": 1
+        }
+      ],
+      "reward_xp": 130,
+      "reward_items": [
+        {
+          "name": "Sequencer's Stabilizer",
+          "description": "An attunement rod that halves the time it takes to balance a lumen surge at any kiln."
+        }
+      ],
+      "completion_message": "Neral settles the core into the harmonic kilnworks. \"Feel that? The underworks are singing back in tune.\""
+    },
+    {
+      "id": "weave_beacon_choir",
+      "name": "Weave the Beacon Choir",
+      "description": "Beacon Keeper Iress requests charged skyloom filaments and a pacified tempest whisper so the beacon choir can broadcast safe routes across the night sky.",
+      "giver": "Beacon Keeper Iress",
+      "turn_in": "Beacon Keeper Iress",
+      "required_kills": [
+        {
+          "npc": "Tempest Whisper",
+          "count": 2
+        }
+      ],
+      "required_items": [
+        {
+          "item": "Skyloom Filament",
+          "count": 5
+        }
+      ],
+      "reward_xp": 140,
+      "reward_items": [
+        {
+          "name": "Beacon Choir Baton",
+          "description": "A baton woven with skyloom strands that lets you recall any beacon's guiding melody."
+        }
+      ],
+      "completion_message": "Iress threads the filaments through the lanterns and smiles. \"Listen—the city now knows the safest winds to follow.\""
     }
   ]
 }
