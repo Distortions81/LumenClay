@@ -51,8 +51,8 @@ When overriding the accounts file, persistent mail and offline tells automatical
 go run . -accounts /var/lumen/accounts.json -mail /srv/mailbox.json -tells /srv/tells.json
 ```
 
-Enable TLS by passing `-tls`. By default the server looks for certificate files that follow the
-[Certbot](https://certbot.eff.org/) naming convention: `data/tls/fullchain.pem` and `data/tls/privkey.pem`.
+Enable TLS by passing `-tls`. By default the server looks for certificate files in the project root that follow the
+[Certbot](https://certbot.eff.org/) naming convention: `fullchain.pem` and `privkey.pem`.
 The MUD listener and the staff web portal share these files so a single certificate
 covers both telnet and HTTPS. Point `-cert` at another directory or bundle if your
 files live elsewhere. When you supply a directory, the server reads `fullchain.pem`
