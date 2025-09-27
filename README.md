@@ -39,6 +39,18 @@ To listen on a different host or port, supply the `-addr` flag. For example, to 
 go run . -addr "127.0.0.1:5000"
 ```
 
+Player data defaults to the files under [`data/`](data/). Use `-accounts` to choose a different account database and `-areas` to load world definitions from another directory:
+
+```bash
+go run . -accounts /var/lumen/accounts.json -areas /opt/world-data
+```
+
+When overriding the accounts file, persistent mail and offline tells automatically live beside it (for example `/var/lumen/mail.json` and `/var/lumen/tells.json`). You can point each of these stores elsewhere with `-mail` and `-tells` if desired:
+
+```bash
+go run . -accounts /var/lumen/accounts.json -mail /srv/mailbox.json -tells /srv/tells.json
+```
+
 Enable TLS by passing `-tls`. By default the server stores its certificate at `data/tls/cert.pem` and private key at `data/tls/key.pem`,
 and you can override these paths with the `-cert` and `-key` flags:
 
