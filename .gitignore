@@ -1,3 +1,5 @@
 data/players/
 data/accounts.json
 data/tls/
+fullchain.pem
+privkey.pem

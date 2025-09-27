@@ -65,12 +65,11 @@ go run . -tls -cert /etc/letsencrypt/live/example.com
 ```
 
 When HTTPS is enabled, the staff web portal automatically binds to the same host as the MUD listener on port `443` and reuses the
-TLS certificate and key. Override the default host, port, or certificate bundle if you need
-to split the services:
+TLS certificate and key. Override the default port or certificate bundle if you need to split the services:
 
 - `-web-addr auto` (default) &mdash; use the host from `-addr` on port `443`.
 - `-web-addr off` &mdash; disable the portal entirely.
-- `-web-addr host:port` &mdash; listen on a custom HTTPS address.
+- `-web-addr PORT` &mdash; listen on a custom HTTPS port while keeping the host from `-addr`.
 - `-web-cert auto` &mdash; reuse the `-cert` path (default).
 - `-web-cert PATH` &mdash; point the portal to a different certificate directory or bundle.
 

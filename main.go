@@ -21,7 +21,7 @@ func main() {
 	areasPath := flag.String("areas", game.DefaultAreasPath, "Directory containing world area definitions")
 	mailPath := flag.String("mail", "", "Optional path to persistent mail storage (defaults beside the accounts file)")
 	tellsPath := flag.String("tells", "", "Optional path to offline tells storage (defaults beside the accounts file)")
-	webAddr := flag.String("web-addr", "auto", "HTTPS address for the staff web portal (auto matches --addr on port 443; empty disables)")
+	webAddr := flag.String("web-addr", "auto", "HTTPS port for the staff web portal (auto uses 443 on the same host as --addr; empty disables)")
 	webCert := flag.String("web-cert", "auto", "Path to the web portal TLS certificate directory or bundle (auto uses --cert)")
 	webBase := flag.String("web-base-url", "", "Optional external base URL for portal links")
 	flag.Parse()
@@ -65,17 +65,31 @@ func resolveWebAddr(flagValue, mudAddr string) string {
 	case "", "disable", "disabled", "off":
 		return ""
 	case "auto":
-		host, _, err := net.SplitHostPort(mudAddr)
-		if err != nil {
-			host = strings.TrimSpace(mudAddr)
-		}
-		if host == "" {
-			return ":443"
-		}
+		host := portalHost(mudAddr)
 		return net.JoinHostPort(host, "443")
 	default:
-		return trimmed
+		port := trimmed
+		if strings.Contains(trimmed, ":") {
+			if _, parsedPort, err := net.SplitHostPort(trimmed); err == nil {
+				port = parsedPort
+			}
+		}
+		port = strings.TrimPrefix(port, ":")
+		port = strings.TrimSpace(port)
+		if port == "" {
+			return ""
+		}
+		host := portalHost(mudAddr)
+		return net.JoinHostPort(host, port)
 	}
+}
+
+func portalHost(mudAddr string) string {
+	host, _, err := net.SplitHostPort(mudAddr)
+	if err == nil {
+		return host
+	}
+	return strings.TrimSpace(mudAddr)
 }
 
 func resolveCertBase(flagValue, defaultValue string) string {

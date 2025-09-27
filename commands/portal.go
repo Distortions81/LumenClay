@@ -16,7 +16,7 @@ var Portal = Define(Definition{
 }, func(ctx *Context) bool {
 	provider := ctx.World.Portal()
 	if provider == nil {
-		ctx.Player.Output <- game.Ansi(game.Style("\r\nThe web portal is not configured. Ask an admin to enable TLS (default Certbot fullchain.pem/privkey.pem) or supply --web-addr.", game.AnsiYellow))
+		ctx.Player.Output <- game.Ansi(game.Style("\r\nThe web portal is not configured. Ask an admin to enable TLS (default Certbot fullchain.pem/privkey.pem) or supply --web-addr with a port.", game.AnsiYellow))
 		return false
 	}
 
