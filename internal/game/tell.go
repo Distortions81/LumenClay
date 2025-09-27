@@ -26,19 +26,59 @@ type OfflineTell struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// TellSystem persists offline tells for delivery when players return.
-type TellSystem struct {
-	mu    sync.RWMutex
-	path  string
-	queue map[string][]OfflineTell
+// Default retention configuration for stored offline tells.
+const (
+	// DefaultTellMaxAge defines how long tells are retained before they expire.
+	// A zero duration disables age-based expiration.
+	DefaultTellMaxAge = time.Duration(0)
+	// DefaultTellMaxMessagesPerRecipient caps the number of stored tells per recipient.
+	// A zero value disables the per-recipient cap.
+	DefaultTellMaxMessagesPerRecipient = 0
+)
+
+// TellRetentionPolicy defines the retention rules applied to stored offline tells.
+type TellRetentionPolicy struct {
+	MaxAge                  time.Duration
+	MaxMessagesPerRecipient int
 }
 
-// NewTellSystem constructs an offline tell manager backed by the provided file path.
-// When path is empty the system operates purely in-memory without persistence.
+func (p TellRetentionPolicy) normalized() TellRetentionPolicy {
+	if p.MaxAge < 0 {
+		p.MaxAge = 0
+	}
+	if p.MaxMessagesPerRecipient < 0 {
+		p.MaxMessagesPerRecipient = 0
+	}
+	return p
+}
+
+// TellSystem persists offline tells for delivery when players return.
+type TellSystem struct {
+	mu     sync.RWMutex
+	path   string
+	queue  map[string][]OfflineTell
+	policy TellRetentionPolicy
+}
+
+// NewTellSystem constructs an offline tell manager backed by the provided file path
+// using the default retention policy. When path is empty the system operates purely
+// in-memory without persistence.
 func NewTellSystem(path string) (*TellSystem, error) {
+	return NewTellSystemWithRetention(path, TellRetentionPolicy{
+		MaxAge:                  DefaultTellMaxAge,
+		MaxMessagesPerRecipient: DefaultTellMaxMessagesPerRecipient,
+	})
+}
+
+// NewTellSystemWithRetention constructs an offline tell manager with the provided
+// retention policy. When path is empty the system operates purely in-memory without
+// persistence.
+func NewTellSystemWithRetention(path string, policy TellRetentionPolicy) (*TellSystem, error) {
+	normalized := policy.normalized()
 	system := &TellSystem{
-		path:  path,
-		queue: make(map[string][]OfflineTell),
+		path:   path,
+		queue:  make(map[string][]OfflineTell),
+		policy: normalized,
 	}
 	trimmed := strings.TrimSpace(path)
 	if trimmed == "" {
@@ -91,10 +131,11 @@ func NewTellSystem(path string) (*TellSystem, error) {
 		if len(sanitized) == 0 {
 			continue
 		}
-		sort.SliceStable(sanitized, func(i, j int) bool {
-			return sanitized[i].CreatedAt.Before(sanitized[j].CreatedAt)
-		})
-		system.queue[normalized] = sanitized
+		pruned := system.applyRetention(sanitized, now)
+		if len(pruned) == 0 {
+			continue
+		}
+		system.queue[normalized] = pruned
 	}
 	return system, nil
 }
@@ -156,7 +197,13 @@ func (t *TellSystem) Queue(sender, recipient, body string, when time.Time) (Offl
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	existing := t.queue[key]
+	now := time.Now().UTC()
+	existing := t.applyRetention(t.queue[key], now)
+	if len(existing) == 0 {
+		delete(t.queue, key)
+	} else {
+		t.queue[key] = existing
+	}
 	count := 0
 	for _, entry := range existing {
 		if strings.EqualFold(entry.Sender, trimmedSender) {
@@ -174,10 +221,22 @@ func (t *TellSystem) Queue(sender, recipient, body string, when time.Time) (Offl
 		Body:      trimmedBody,
 		CreatedAt: when.UTC(),
 	}
+	if when.IsZero() {
+		tell.CreatedAt = now
+	}
 	cloned = append(cloned, tell)
-	t.queue[key] = cloned
+	retained := t.applyRetention(cloned, now)
+	if len(retained) == 0 {
+		delete(t.queue, key)
+	} else {
+		t.queue[key] = retained
+	}
 	if err := t.persistLocked(); err != nil {
-		t.queue[key] = existing
+		if len(existing) == 0 {
+			delete(t.queue, key)
+		} else {
+			t.queue[key] = existing
+		}
 		return OfflineTell{}, err
 	}
 	return tell, nil
@@ -191,12 +250,14 @@ func (t *TellSystem) persistLocked() error {
 		return nil
 	}
 	active := make(map[string][]OfflineTell, len(t.queue))
+	now := time.Now().UTC()
 	for key, list := range t.queue {
-		if len(list) == 0 {
+		retained := t.applyRetention(list, now)
+		if len(retained) == 0 {
 			continue
 		}
-		copied := make([]OfflineTell, len(list))
-		copy(copied, list)
+		copied := make([]OfflineTell, len(retained))
+		copy(copied, retained)
 		sort.SliceStable(copied, func(i, j int) bool {
 			return copied[i].CreatedAt.Before(copied[j].CreatedAt)
 		})
@@ -238,4 +299,42 @@ func (t *TellSystem) persistLocked() error {
 
 func normalizeTellKey(name string) string {
 	return strings.ToLower(strings.TrimSpace(name))
+}
+
+func (t *TellSystem) applyRetention(list []OfflineTell, now time.Time) []OfflineTell {
+	if len(list) == 0 {
+		return nil
+	}
+	if now.IsZero() {
+		now = time.Now().UTC()
+	} else {
+		now = now.UTC()
+	}
+	pruned := make([]OfflineTell, 0, len(list))
+	cutoff := time.Time{}
+	if t.policy.MaxAge > 0 {
+		cutoff = now.Add(-t.policy.MaxAge)
+	}
+	for _, entry := range list {
+		current := entry
+		if current.CreatedAt.IsZero() {
+			current.CreatedAt = now
+		}
+		if !cutoff.IsZero() && current.CreatedAt.Before(cutoff) {
+			continue
+		}
+		pruned = append(pruned, current)
+	}
+	if len(pruned) == 0 {
+		return nil
+	}
+	sort.SliceStable(pruned, func(i, j int) bool {
+		return pruned[i].CreatedAt.Before(pruned[j].CreatedAt)
+	})
+	if t.policy.MaxMessagesPerRecipient > 0 && len(pruned) > t.policy.MaxMessagesPerRecipient {
+		pruned = pruned[len(pruned)-t.policy.MaxMessagesPerRecipient:]
+	}
+	sanitized := make([]OfflineTell, len(pruned))
+	copy(sanitized, pruned)
+	return sanitized
 }
