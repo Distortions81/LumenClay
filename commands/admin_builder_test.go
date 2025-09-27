@@ -52,6 +52,51 @@ func TestBuilderCommandTogglesFlag(t *testing.T) {
 	}
 }
 
+func TestModeratorCommandTogglesFlag(t *testing.T) {
+	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
+		"start": {
+			ID:          "start",
+			Title:       "Starting Room",
+			Description: "The central hub.",
+			Exits:       map[string]game.RoomID{},
+		},
+	})
+	admin := newTestPlayer("Admin", "start")
+	admin.IsAdmin = true
+	target := newTestPlayer("Target", "start")
+	world.AddPlayerForTest(admin)
+	world.AddPlayerForTest(target)
+
+	if quit := Dispatch(world, admin, "moderator Target on"); quit {
+		t.Fatalf("dispatch returned true, want false")
+	}
+	if !target.IsModerator {
+		t.Fatalf("target should be moderator after enable")
+	}
+
+	adminMsgs := drainOutput(admin.Output)
+	if len(adminMsgs) == 0 || !strings.Contains(adminMsgs[len(adminMsgs)-1], "Target is now a moderator") {
+		t.Fatalf("unexpected admin output: %v", adminMsgs)
+	}
+	targetMsgs := drainOutput(target.Output)
+	sawNotice := false
+	for _, msg := range targetMsgs {
+		if strings.Contains(msg, "You are now a moderator") {
+			sawNotice = true
+		}
+	}
+	if !sawNotice {
+		t.Fatalf("target did not receive moderator notice: %v", targetMsgs)
+	}
+
+	if quit := Dispatch(world, admin, "moderator Target off"); quit {
+		t.Fatalf("dispatch returned true on disable")
+	}
+	if target.IsModerator {
+		t.Fatalf("target should not be moderator after disable")
+	}
+}
+
 func TestGotoRequiresBuilder(t *testing.T) {
 	world := game.NewWorldWithRooms(map[game.RoomID]*game.Room{
 		"start": {

@@ -55,6 +55,22 @@ func HighlightQuestName(name string) string {
 	return Style(name, AnsiBold, AnsiBlue)
 }
 
+// Hyperlink wraps text in an OSC 8 escape sequence for supported clients.
+func Hyperlink(url, label string) string {
+	trimmed := strings.TrimSpace(url)
+	if trimmed == "" {
+		if label == "" {
+			return ""
+		}
+		return label
+	}
+	safe := strings.ReplaceAll(trimmed, "\x1b", "")
+	if label == "" {
+		label = safe
+	}
+	return fmt.Sprintf("\x1b]8;;%s\x1b\\%s\x1b]8;;\x1b\\", safe, label)
+}
+
 // Trim normalises a telnet input line.
 func Trim(s string) string {
 	cleaned := sanitizeInput(s)

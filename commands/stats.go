@@ -140,6 +140,9 @@ func formatRoles(player *game.Player) string {
 	if player.IsBuilder {
 		roles = append(roles, "Builder")
 	}
+	if player.IsModerator {
+		roles = append(roles, "Moderator")
+	}
 	if player.IsAdmin {
 		roles = append(roles, "Admin")
 	}
@@ -148,6 +151,8 @@ func formatRoles(player *game.Player) string {
 		switch role {
 		case "Admin":
 			styled[i] = game.Style(role, game.AnsiBold, game.AnsiMagenta)
+		case "Moderator":
+			styled[i] = game.Style(role, game.AnsiBold, game.AnsiBlue)
 		case "Builder":
 			styled[i] = game.Style(role, game.AnsiCyan)
 		default:
