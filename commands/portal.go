@@ -11,12 +11,12 @@ import (
 var Portal = Define(Definition{
 	Name:        "portal",
 	Usage:       "portal [builder|moderator|admin]",
-	Description: "generate a secure one-use web portal link",
+	Description: "generate a secure one-use staff portal link",
 	Group:       GroupBuilder,
 }, func(ctx *Context) bool {
 	provider := ctx.World.Portal()
 	if provider == nil {
-		ctx.Player.Output <- game.Ansi(game.Style("\r\nThe web portal is not configured.", game.AnsiYellow))
+		ctx.Player.Output <- game.Ansi(game.Style("\r\nThe web portal is not configured. Ask an admin to enable TLS (default Certbot fullchain.pem/privkey.pem) or supply --web-addr.", game.AnsiYellow))
 		return false
 	}
 
