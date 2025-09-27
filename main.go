@@ -20,6 +20,10 @@ func main() {
 	areasPath := flag.String("areas", game.DefaultAreasPath, "Directory containing world area definitions")
 	mailPath := flag.String("mail", "", "Optional path to persistent mail storage (defaults beside the accounts file)")
 	tellsPath := flag.String("tells", "", "Optional path to offline tells storage (defaults beside the accounts file)")
+	webAddr := flag.String("web-addr", ":4443", "HTTPS address for the staff web portal (empty disables)")
+	webCert := flag.String("web-cert", "data/tls/web_cert.pem", "Path to the web portal TLS certificate file")
+	webKey := flag.String("web-key", "data/tls/web_key.pem", "Path to the web portal TLS private key file")
+	webBase := flag.String("web-base-url", "", "Optional external base URL for portal links")
 	flag.Parse()
 
 	var options []game.ServerOption
@@ -28,6 +32,15 @@ func main() {
 	}
 	if trimmed := strings.TrimSpace(*tellsPath); trimmed != "" {
 		options = append(options, game.WithTellPath(trimmed))
+	}
+	if trimmed := strings.TrimSpace(*webAddr); trimmed != "" {
+		portalCfg := game.PortalConfig{
+			Addr:     trimmed,
+			BaseURL:  strings.TrimSpace(*webBase),
+			CertFile: *webCert,
+			KeyFile:  *webKey,
+		}
+		options = append(options, game.WithPortalConfig(portalCfg))
 	}
 
 	var err error

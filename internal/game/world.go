@@ -179,6 +179,7 @@ type World struct {
 	disabledCommands  map[string]bool
 	quests            map[string]*Quest
 	questsByNPC       map[string][]*Quest
+	portal            PortalProvider
 }
 
 // ActivePlayer returns the currently connected player with the provided name.
@@ -224,6 +225,16 @@ func (w *World) PrepareTakeover(name string) (*TelnetSession, chan string, bool)
 type PlayerLocation struct {
 	Name string
 	Room RoomID
+}
+
+// PlayerSnapshot summarises online player state for external integrations.
+type PlayerSnapshot struct {
+	Name        string
+	Room        RoomID
+	RoomTitle   string
+	IsAdmin     bool
+	IsBuilder   bool
+	IsModerator bool
 }
 
 func NewWorld(areasPath string) (*World, error) {
@@ -335,6 +346,20 @@ func (w *World) AttachTellSystem(tells *TellSystem) {
 	w.mu.Lock()
 	w.tells = tells
 	w.mu.Unlock()
+}
+
+// AttachPortal wires the web portal integration into the world.
+func (w *World) AttachPortal(portal PortalProvider) {
+	w.mu.Lock()
+	w.portal = portal
+	w.mu.Unlock()
+}
+
+// Portal returns the configured portal provider, when available.
+func (w *World) Portal() PortalProvider {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.portal
 }
 
 // AccountStats exposes account metadata for the provided name.
@@ -662,6 +687,7 @@ func (w *World) addPlayer(name string, session *TelnetSession, isAdmin bool, pro
 		Output:         make(chan string, 32),
 		Alive:          true,
 		IsAdmin:        isAdmin,
+		IsModerator:    false,
 		IsBuilder:      false,
 		Channels:       cloneChannelSettings(playerChannels),
 		ChannelAliases: cloneChannelAliases(playerAliases),
@@ -1567,6 +1593,18 @@ func (w *World) SetBuilder(name string, enabled bool) (*Player, error) {
 	return p, nil
 }
 
+// SetModerator toggles the moderator flag for a connected player.
+func (w *World) SetModerator(name string, enabled bool) (*Player, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	p, ok := w.findPlayerLocked(name)
+	if !ok {
+		return nil, fmt.Errorf("%s is not online", name)
+	}
+	p.IsModerator = enabled
+	return p, nil
+}
+
 // MoveToRoom relocates the provided player to the specified room.
 func (w *World) MoveToRoom(p *Player, room RoomID) error {
 	w.mu.Lock()
@@ -2189,6 +2227,43 @@ func (w *World) PlayerLocations() []PlayerLocation {
 		}
 	}
 	return locations
+}
+
+// PlayerSnapshots returns an ordered view of online players with their roles and room titles.
+func (w *World) PlayerSnapshots() []PlayerSnapshot {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	snapshots := make([]PlayerSnapshot, 0, len(w.players))
+	seen := make(map[string]struct{}, len(w.playerOrder))
+	collect := func(p *Player) {
+		if p == nil || !p.Alive {
+			return
+		}
+		snapshot := PlayerSnapshot{
+			Name:        p.Name,
+			Room:        p.Room,
+			IsAdmin:     p.IsAdmin,
+			IsBuilder:   p.IsBuilder,
+			IsModerator: p.IsModerator,
+		}
+		if room, ok := w.rooms[p.Room]; ok && room != nil {
+			snapshot.RoomTitle = room.Title
+		}
+		snapshots = append(snapshots, snapshot)
+		seen[p.Name] = struct{}{}
+	}
+	for _, name := range w.playerOrder {
+		collect(w.players[name])
+	}
+	if len(seen) != len(w.players) {
+		for _, p := range w.players {
+			if _, ok := seen[p.Name]; ok {
+				continue
+			}
+			collect(p)
+		}
+	}
+	return snapshots
 }
 
 func (w *World) removePlayerOrderLocked(name string) {

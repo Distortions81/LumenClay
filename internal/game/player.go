@@ -16,6 +16,7 @@ type Player struct {
 	Output           chan string
 	Alive            bool
 	IsAdmin          bool
+	IsModerator      bool
 	IsBuilder        bool
 	Channels         map[Channel]bool
 	ChannelAliases   map[Channel]string

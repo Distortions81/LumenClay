@@ -32,6 +32,7 @@ type serverConfig struct {
 type serverOptions struct {
 	mailPath  string
 	tellsPath string
+	portalCfg *PortalConfig
 }
 
 // ServerOption customises the behaviour of ListenAndServe and ListenAndServeTLS.
@@ -56,6 +57,14 @@ func WithStoragePaths(mailPath, tellsPath string) ServerOption {
 	return func(opts *serverOptions) {
 		opts.mailPath = strings.TrimSpace(mailPath)
 		opts.tellsPath = strings.TrimSpace(tellsPath)
+	}
+}
+
+// WithPortalConfig enables the HTTPS portal using the provided configuration.
+func WithPortalConfig(cfg PortalConfig) ServerOption {
+	return func(opts *serverOptions) {
+		copy := cfg
+		opts.portalCfg = &copy
 	}
 }
 
@@ -352,6 +361,22 @@ func listenAndServe(addr, accountsPath, areasPath, adminAccount string, dispatch
 		return err
 	}
 	world.AttachTellSystem(tells)
+
+	var portal PortalProvider
+	if options.portalCfg != nil {
+		portal, err = portalFactory(world, *options.portalCfg)
+		if err != nil {
+			return err
+		}
+		if portal != nil {
+			world.AttachPortal(portal)
+			defer func() {
+				if closer, ok := portal.(interface{ Close() error }); ok {
+					_ = closer.Close()
+				}
+			}()
+		}
+	}
 
 	var ln net.Listener
 	if cfg.enableTLS {
