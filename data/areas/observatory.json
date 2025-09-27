@@ -211,7 +211,8 @@
       "title": "Beaconry of Returning Stars",
       "description": "Glassleaf lanterns hang in concentric halos, flaring whenever a comet's tail brushes the city's warding nets. Each glow stains the night with a returning traveler's hue.",
       "exits": {
-        "d": "observatory_spire"
+        "d": "observatory_spire",
+        "u": "skyloom_gateway"
       },
       "items": [
         {
