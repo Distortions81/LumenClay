@@ -14,7 +14,7 @@ import (
 func main() {
 	addr := flag.String("addr", ":4000", "TCP address to listen on")
 	useTLS := flag.Bool("tls", false, "Enable TLS using the provided certificate and key files")
-	certPath := flag.String("cert", "data/tls", "Path to the TLS certificate directory or bundle (Certbot fullchain.pem/privkey.pem)")
+	certPath := flag.String("cert", ".", "Path to the TLS certificate directory or bundle (Certbot fullchain.pem/privkey.pem; defaults to project root)")
 	adminAccount := flag.String("admin", "admin", "Account granted administrator privileges")
 	everyoneAdmin := flag.Bool("everyone-admin", false, "Grant administrator privileges to all players while disabling reboot and shutdown commands")
 	accountsPath := flag.String("accounts", "data/accounts.json", "Path to the player accounts database")
@@ -89,7 +89,7 @@ func resolveCertBase(flagValue, defaultValue string) string {
 func expandCertPaths(base string) (string, string) {
 	trimmed := strings.TrimSpace(base)
 	if trimmed == "" {
-		trimmed = "data/tls"
+		trimmed = "."
 	}
 	if ext := strings.ToLower(filepath.Ext(trimmed)); ext == ".pem" || ext == ".crt" || ext == ".cer" {
 		dir := filepath.Dir(trimmed)
@@ -106,7 +106,7 @@ func expandCertPaths(base string) (string, string) {
 	}
 	trimmed = strings.TrimSuffix(trimmed, string(filepath.Separator))
 	if trimmed == "" {
-		trimmed = "data/tls"
+		trimmed = "."
 	}
 	return filepath.Join(trimmed, "fullchain.pem"), filepath.Join(trimmed, "privkey.pem")
 }
