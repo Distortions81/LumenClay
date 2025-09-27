@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
 	"net"
@@ -321,11 +322,48 @@ func listenAndServe(addr, accountsPath, areasPath, adminAccount string, dispatch
 	}
 	defer ln.Close()
 
+	return acceptConnections(ln, func(conn net.Conn) {
+		go handleConn(conn, world, accounts, dispatcher)
+	})
+}
+
+const (
+	acceptBackoffStart = 50 * time.Millisecond
+	acceptBackoffMax   = time.Second
+)
+
+var acceptSleep = time.Sleep
+
+func acceptConnections(ln net.Listener, handle func(net.Conn)) error {
+	backoff := acceptBackoffStart
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
+			if isTemporaryAcceptError(err) {
+				fmt.Printf("Temporary error accepting connection: %v; retrying in %s\n", err, backoff)
+				acceptSleep(backoff)
+				backoff *= 2
+				if backoff > acceptBackoffMax {
+					backoff = acceptBackoffMax
+				}
+				continue
+			}
 			return err
 		}
-		go handleConn(conn, world, accounts, dispatcher)
+		backoff = acceptBackoffStart
+		handle(conn)
 	}
+}
+
+func isTemporaryAcceptError(err error) bool {
+	var ne net.Error
+	if errors.As(err, &ne) {
+		if ne.Timeout() || ne.Temporary() {
+			return true
+		}
+	}
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		return true
+	}
+	return false
 }
