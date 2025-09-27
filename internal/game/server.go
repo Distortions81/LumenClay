@@ -28,6 +28,46 @@ type serverConfig struct {
 	lockCriticalOps bool
 }
 
+type serverOptions struct {
+	mailPath  string
+	tellsPath string
+}
+
+// ServerOption customises the behaviour of ListenAndServe and ListenAndServeTLS.
+type ServerOption func(*serverOptions)
+
+// WithMailPath overrides the default mail storage location.
+func WithMailPath(path string) ServerOption {
+	return func(opts *serverOptions) {
+		opts.mailPath = strings.TrimSpace(path)
+	}
+}
+
+// WithTellPath overrides the default offline tell storage location.
+func WithTellPath(path string) ServerOption {
+	return func(opts *serverOptions) {
+		opts.tellsPath = strings.TrimSpace(path)
+	}
+}
+
+// WithStoragePaths overrides both the mail and offline tell storage locations.
+func WithStoragePaths(mailPath, tellsPath string) ServerOption {
+	return func(opts *serverOptions) {
+		opts.mailPath = strings.TrimSpace(mailPath)
+		opts.tellsPath = strings.TrimSpace(tellsPath)
+	}
+}
+
+var (
+	accountManagerFactory = NewAccountManager
+	worldFactory          = NewWorld
+	mailSystemFactory     = NewMailSystem
+	tellSystemFactory     = NewTellSystem
+	netListenFunc         = net.Listen
+	tlsListenFunc         = tls.Listen
+	ensureCertificateFunc = ensureCertificate
+)
+
 const (
 	postLoginAtmosphere = "The luminous clay stirs to life around you."
 	postLoginPrompt     = "Type 'help' to learn the essentials or 'look' to absorb your surroundings."
@@ -240,18 +280,18 @@ func handleConn(conn net.Conn, world *World, accounts *AccountManager, dispatche
 // administrator status to all players and temporarily disables critical
 // maintenance commands. It returns when the listener encounters a fatal
 // error.
-func ListenAndServe(addr, accountsPath, areasPath, adminAccount string, dispatcher Dispatcher, forceAllAdmin bool) error {
+func ListenAndServe(addr, accountsPath, areasPath, adminAccount string, dispatcher Dispatcher, forceAllAdmin bool, opts ...ServerOption) error {
 	cfg := serverConfig{
 		forceAllAdmin:   forceAllAdmin,
 		lockCriticalOps: forceAllAdmin,
 	}
-	return listenAndServe(addr, accountsPath, areasPath, adminAccount, dispatcher, cfg)
+	return listenAndServe(addr, accountsPath, areasPath, adminAccount, dispatcher, cfg, opts...)
 }
 
 // ListenAndServeTLS behaves like ListenAndServe but secures the connection
 // using TLS with the provided certificate and key files. If the files do not
 // exist, a self-signed certificate is generated.
-func ListenAndServeTLS(addr, accountsPath, areasPath, certFile, keyFile, adminAccount string, dispatcher Dispatcher, forceAllAdmin bool) error {
+func ListenAndServeTLS(addr, accountsPath, areasPath, certFile, keyFile, adminAccount string, dispatcher Dispatcher, forceAllAdmin bool, opts ...ServerOption) error {
 	cfg := serverConfig{
 		enableTLS:       true,
 		certFile:        certFile,
@@ -259,10 +299,10 @@ func ListenAndServeTLS(addr, accountsPath, areasPath, certFile, keyFile, adminAc
 		forceAllAdmin:   forceAllAdmin,
 		lockCriticalOps: forceAllAdmin,
 	}
-	return listenAndServe(addr, accountsPath, areasPath, adminAccount, dispatcher, cfg)
+	return listenAndServe(addr, accountsPath, areasPath, adminAccount, dispatcher, cfg, opts...)
 }
 
-func listenAndServe(addr, accountsPath, areasPath, adminAccount string, dispatcher Dispatcher, cfg serverConfig) error {
+func listenAndServe(addr, accountsPath, areasPath, adminAccount string, dispatcher Dispatcher, cfg serverConfig, opts ...ServerOption) error {
 	if dispatcher == nil {
 		return fmt.Errorf("dispatcher must not be nil")
 	}
@@ -271,27 +311,42 @@ func listenAndServe(addr, accountsPath, areasPath, adminAccount string, dispatch
 		areasPath = DefaultAreasPath
 	}
 
-	accounts, err := NewAccountManager(accountsPath)
+	options := serverOptions{}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&options)
+		}
+	}
+
+	accounts, err := accountManagerFactory(accountsPath)
 	if err != nil {
 		return err
 	}
 	accounts.SetAdminAccount(adminAccount)
-	world, err := NewWorld(areasPath)
+	world, err := worldFactory(areasPath)
 	if err != nil {
 		return err
 	}
 	world.ConfigurePrivileges(cfg.forceAllAdmin, cfg.lockCriticalOps)
 	world.AttachAccountManager(accounts)
 
-	mailPath := filepath.Join(filepath.Dir(accountsPath), "mail.json")
-	mail, err := NewMailSystem(mailPath)
+	accountsDir := filepath.Dir(accountsPath)
+
+	mailPath := options.mailPath
+	if mailPath == "" {
+		mailPath = filepath.Join(accountsDir, "mail.json")
+	}
+	mail, err := mailSystemFactory(mailPath)
 	if err != nil {
 		return err
 	}
 	world.AttachMailSystem(mail)
 
-	tellsPath := filepath.Join(filepath.Dir(accountsPath), "tells.json")
-	tells, err := NewTellSystem(tellsPath)
+	tellsPath := options.tellsPath
+	if tellsPath == "" {
+		tellsPath = filepath.Join(accountsDir, "tells.json")
+	}
+	tells, err := tellSystemFactory(tellsPath)
 	if err != nil {
 		return err
 	}
@@ -299,7 +354,7 @@ func listenAndServe(addr, accountsPath, areasPath, adminAccount string, dispatch
 
 	var ln net.Listener
 	if cfg.enableTLS {
-		cert, created, err := ensureCertificate(cfg.certFile, cfg.keyFile, addr)
+		cert, created, err := ensureCertificateFunc(cfg.certFile, cfg.keyFile, addr)
 		if err != nil {
 			return err
 		}
@@ -307,13 +362,13 @@ func listenAndServe(addr, accountsPath, areasPath, adminAccount string, dispatch
 			fmt.Printf("Generated self-signed TLS certificate at %s and %s\n", cfg.certFile, cfg.keyFile)
 		}
 		tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}}
-		ln, err = tls.Listen("tcp", addr, tlsConfig)
+		ln, err = tlsListenFunc("tcp", addr, tlsConfig)
 		if err != nil {
 			return err
 		}
 		fmt.Printf("MUD listening on %s (TLS enabled, telnet + ANSI ready)\n", ln.Addr())
 	} else {
-		ln, err = net.Listen("tcp", addr)
+		ln, err = netListenFunc("tcp", addr)
 		if err != nil {
 			return err
 		}
