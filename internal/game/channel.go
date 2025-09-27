@@ -21,6 +21,13 @@ var channelLookup = map[string]Channel{
 	"ooc":     ChannelOOC,
 }
 
+var baseChannelSettings = map[Channel]bool{
+	ChannelSay:     true,
+	ChannelWhisper: true,
+	ChannelYell:    true,
+	ChannelOOC:     true,
+}
+
 // AllChannels returns the set of available chat channels.
 func AllChannels() []Channel {
 	out := make([]Channel, len(allChannels))
@@ -35,22 +42,12 @@ func ChannelFromString(name string) (Channel, bool) {
 }
 
 func defaultChannelSettings() map[Channel]bool {
-	return map[Channel]bool{
-		ChannelSay:     true,
-		ChannelWhisper: true,
-		ChannelYell:    true,
-		ChannelOOC:     true,
-	}
+	return cloneChannelSettings(baseChannelSettings)
 }
 
 // DefaultChannelSettings exposes the default channel configuration.
 func DefaultChannelSettings() map[Channel]bool {
-	return map[Channel]bool{
-		ChannelSay:     true,
-		ChannelWhisper: true,
-		ChannelYell:    true,
-		ChannelOOC:     true,
-	}
+	return cloneChannelSettings(baseChannelSettings)
 }
 
 func cloneChannelSettings(settings map[Channel]bool) map[Channel]bool {

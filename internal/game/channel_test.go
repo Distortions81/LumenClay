@@ -101,3 +101,21 @@ func TestCloneChannelAliases(t *testing.T) {
 		t.Fatalf("expected nil clone for nil input")
 	}
 }
+
+func TestDefaultChannelSettingsReturnsClone(t *testing.T) {
+	defaults := DefaultChannelSettings()
+	if len(defaults) != len(allChannels) {
+		t.Fatalf("expected %d default channels, got %d", len(allChannels), len(defaults))
+	}
+	for _, channel := range allChannels {
+		if !defaults[channel] {
+			t.Fatalf("expected %v to be enabled by default", channel)
+		}
+	}
+
+	defaults[ChannelSay] = false
+	next := DefaultChannelSettings()
+	if !next[ChannelSay] {
+		t.Fatalf("expected ChannelSay to remain enabled in subsequent calls")
+	}
+}
