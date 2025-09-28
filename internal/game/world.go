@@ -235,6 +235,39 @@ type PlayerSnapshot struct {
 	IsAdmin     bool
 	IsBuilder   bool
 	IsModerator bool
+	Level       int
+	Health      int
+	MaxHealth   int
+	Mana        int
+	MaxMana     int
+	JoinedAt    time.Time
+}
+
+func snapshotVitals(p *Player) (level, health, maxHealth, mana, maxMana int) {
+	if p == nil {
+		return 1, 0, 50, 0, 25
+	}
+	level = p.Level
+	if level < 1 {
+		level = 1
+	}
+	maxHealth = p.MaxHealth
+	if maxHealth <= 0 {
+		maxHealth = 50 + (level-1)*10
+	}
+	health = p.Health
+	if health <= 0 || health > maxHealth {
+		health = maxHealth
+	}
+	maxMana = p.MaxMana
+	if maxMana < 0 {
+		maxMana = 25 + (level-1)*5
+	}
+	mana = p.Mana
+	if mana < 0 || mana > maxMana {
+		mana = maxMana
+	}
+	return
 }
 
 func NewWorld(areasPath string) (*World, error) {
@@ -2249,6 +2282,13 @@ func (w *World) PlayerSnapshots() []PlayerSnapshot {
 		if room, ok := w.rooms[p.Room]; ok && room != nil {
 			snapshot.RoomTitle = room.Title
 		}
+		level, health, maxHealth, mana, maxMana := snapshotVitals(p)
+		snapshot.Level = level
+		snapshot.Health = health
+		snapshot.MaxHealth = maxHealth
+		snapshot.Mana = mana
+		snapshot.MaxMana = maxMana
+		snapshot.JoinedAt = p.JoinedAt
 		snapshots = append(snapshots, snapshot)
 		seen[p.Name] = struct{}{}
 	}

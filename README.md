@@ -76,6 +76,15 @@ TLS certificate and key. Override the default port or certificate bundle if you 
 The server generates a self-signed certificate the first time it starts if the specified
 files do not exist and reuses that certificate afterwards.
 
+### Staff web portal
+
+When HTTPS is enabled (see `-tls` above) staff can request a one-use link with the
+`portal` command to reach a browser dashboard. The portal now includes:
+
+- Real-time "At a Glance" cards that summarize total online players, staff coverage, and average session length.
+- A detailed player table with level, health, mana, connected-room information, and live session timers.
+- JSON APIs at `/api/players` (player list + stats) and `/api/overview` (aggregated staff metrics) for custom tooling.
+
 Choose which account should receive administrator privileges by using the `-admin` flag (case-insensitive). For example, to grant the
 `Wizard` account admin rights:
 
