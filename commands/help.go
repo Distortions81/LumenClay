@@ -21,6 +21,9 @@ var Help = Define(Definition{
 	if ctx.Player.IsAdmin {
 		message += "\r\nType 'wizhelp' for admin commands."
 	}
+	if ctx.Player.IsModerator {
+		message += "\r\nModerators may type 'portal' to request a moderation portal link."
+	}
 	ctx.Player.Output <- game.Ansi(message)
 	return false
 })
