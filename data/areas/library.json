@@ -30,7 +30,8 @@
       "npcs": [
         {
           "name": "First Librarian Ellion",
-          "auto_greet": "Knowledge is a kiln—feed it questions and it warms everyone nearby."
+          "auto_greet": "Knowledge is a kiln—feed it questions and it warms everyone nearby.",
+          "script": "ellion_librarian"
         }
       ]
     },
