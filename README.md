@@ -80,12 +80,14 @@ files do not exist and reuses that certificate afterwards.
 
 ### Staff web portal
 
-When HTTPS is enabled (see `-tls` above) staff can request a one-use link with the
-`portal` command to reach a browser dashboard. The portal now includes:
+When HTTPS is enabled (see `-tls` above) any player can request a one-use link with the
+`portal` command to open the shared notes workspace, while staff can access the full dashboard. The portal now includes:
 
 - Real-time "At a Glance" cards that summarize total online players, staff coverage, and average session length.
 - A detailed player table with level, health, mana, connected-room information, and live session timers.
 - JSON APIs at `/api/players` (player list + stats) and `/api/overview` (aggregated staff metrics) for custom tooling.
+- A collaborative notes workspace at `/api/documents` that lets everyone capture descriptions and planning notes directly from the browser (up to 24 documents, 16 KB each).
+- Builders, moderators, and admins can mark a document as a Go script to receive in-browser highlighting along with gofmt formatting and validation before the draft is saved.
 
 Choose which account should receive administrator privileges by using the `-admin` flag (case-insensitive). For example, to grant the
 `Wizard` account admin rights:
@@ -130,7 +132,7 @@ After logging in, type `help` (or `?`) to see the in-game reference. Common comm
 - `quit` &mdash; Disconnect from the server.
 - `reboot` (admin only) &mdash; Reload the world data and return everyone to the starting room.
 - `buildhelp` (builders/admins) &mdash; List the online creation commands available to builders.
-- `portal [builder|moderator|admin]` (builders/moderators/admins) &mdash; Generate a one-use HTTPS link to the staff web portal when it is configured.
+- `portal [notes|builder|moderator|admin]` (all players for `notes`; builder/moderator/admin require the matching role) &mdash; Generate a one-use HTTPS link to the collaborative notes space or the staff dashboards when configured.
 - `wizhelp` (admin only) &mdash; List administrative commands such as `reboot` and `summon`.
 
 Climb to the Glazemaker's Overlook from the starting atrium and head north to reach the new Celestial Observatory. There you'll find the Horizon Plaza, Zephyr Rampart, Astral Scriptorium, and the Lenswright Workshop, now joined by the Arcade of Shifting Sundials, a noctilucent reflecting pool, and an expanded vertical circuit that threads through the Aurora Spire, its heliograph gallery, a chart vault walkway, and the tea-scented loft of Professor Orrin before cresting at the beaconry. The subterranean Starwell, Resonance Vault, and Gravity Underchamber remain below, rounding out a sky-struck ascent packed with NPCs and artifacts.

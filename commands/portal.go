@@ -10,9 +10,9 @@ import (
 
 var Portal = Define(Definition{
 	Name:        "portal",
-	Usage:       "portal [builder|moderator|admin]",
-	Description: "generate a secure one-use staff portal link",
-	Group:       GroupBuilder,
+	Usage:       "portal [notes|builder|moderator|admin]",
+	Description: "generate a secure one-use web portal link",
+	Group:       GroupGeneral,
 }, func(ctx *Context) bool {
 	provider := ctx.World.Portal()
 	if provider == nil {
@@ -26,7 +26,7 @@ var Portal = Define(Definition{
 		if requested != "" {
 			ctx.Player.Output <- game.Ansi(game.Style("\r\nYou are not permitted to request that portal.", game.AnsiYellow))
 		} else {
-			ctx.Player.Output <- game.Ansi(game.Style("\r\nOnly builders, moderators, or admins may request portal links.", game.AnsiYellow))
+			ctx.Player.Output <- game.Ansi(game.Style("\r\nRequest a specific portal with notes, builder, moderator, or admin.", game.AnsiYellow))
 		}
 		return false
 	}
@@ -52,6 +52,8 @@ var Portal = Define(Definition{
 
 func selectPortalRole(player *game.Player, requested string) (game.PortalRole, bool) {
 	switch requested {
+	case "notes", "player", "note":
+		return game.PortalRolePlayer, true
 	case "builder":
 		if player.IsBuilder || player.IsAdmin || player.IsModerator {
 			return game.PortalRoleBuilder, true
@@ -76,7 +78,7 @@ func selectPortalRole(player *game.Player, requested string) (game.PortalRole, b
 		case player.IsBuilder:
 			return game.PortalRoleBuilder, true
 		default:
-			return "", false
+			return game.PortalRolePlayer, true
 		}
 	default:
 		return "", false
@@ -89,6 +91,8 @@ func portalRoleLabel(role game.PortalRole) string {
 		return "Administration"
 	case game.PortalRoleModerator:
 		return "Moderation"
+	case game.PortalRolePlayer:
+		return "Notes"
 	default:
 		return "Builder"
 	}
