@@ -60,6 +60,7 @@ var Look = Define(Definition{
 				game.HighlightItemName(item.Name),
 				game.WrapText(desc, width),
 			))
+			ctx.World.TriggerItemInspect(ctx.Player, ctx.Player.Room, item, "room")
 			return false
 		}
 		if dir, dest, found := ctx.World.ResolveExit(ctx.Player.Room, target); found {
@@ -112,5 +113,6 @@ var Look = Define(Definition{
 		}
 		ctx.Player.Output <- game.Ansi(fmt.Sprintf("\r\nOn the ground: %s", strings.Join(names, ", ")))
 	}
+	ctx.World.TriggerRoomLook(ctx.Player)
 	return false
 })

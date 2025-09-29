@@ -28,5 +28,6 @@ var Examine = Define(Definition{
 		desc = "You see nothing special."
 	}
 	ctx.Player.Output <- game.Ansi(fmt.Sprintf("\r\nYou examine %s. %s", game.HighlightItemName(item.Name), desc))
+	ctx.World.TriggerItemInspect(ctx.Player, ctx.Player.Room, item, "inventory")
 	return false
 })

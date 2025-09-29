@@ -28,6 +28,7 @@ type Room struct {
 	NPCs        []NPC             `json:"npcs"`
 	Items       []Item            `json:"items"`
 	Resets      []RoomReset       `json:"resets,omitempty"`
+	Script      string            `json:"script,omitempty"`
 }
 
 // RoomRevision captures a snapshot of a room's editable fields.
@@ -125,6 +126,7 @@ type RoomReset struct {
 type Item struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
+	Script      string `json:"script,omitempty"`
 }
 
 func normalizeNPC(n *NPC) {
@@ -183,7 +185,8 @@ type World struct {
 	quests            map[string]*Quest
 	questsByNPC       map[string][]*Quest
 	portal            PortalProvider
-	npcScripts        *npcScriptEngine
+	scripts           *scriptEngine
+	areaMeta          map[string]areaMetadata
 }
 
 // ActivePlayer returns the currently connected player with the provided name.
@@ -275,7 +278,7 @@ func snapshotVitals(p *Player) (level, health, maxHealth, mana, maxMana int) {
 }
 
 func NewWorld(areasPath string) (*World, error) {
-	rooms, sources, err := loadRooms(areasPath)
+	rooms, sources, areas, err := loadRooms(areasPath)
 	if err != nil {
 		return nil, err
 	}
@@ -283,21 +286,18 @@ func NewWorld(areasPath string) (*World, error) {
 	if err != nil {
 		return nil, err
 	}
-	scriptsDir := ""
-	if strings.TrimSpace(areasPath) != "" {
-		scriptsDir = filepath.Join(filepath.Dir(areasPath), "scripts")
-	}
 	return &World{
 		rooms:         rooms,
 		players:       make(map[string]*Player),
 		playerOrder:   make([]string, 0),
 		areasPath:     areasPath,
 		roomSources:   sources,
+		areaMeta:      areas,
 		roomHistories: newRoomHistories(rooms),
 		builderPath:   filepath.Join(areasPath, builderAreaFile),
 		quests:        quests,
 		questsByNPC:   indexQuestsByNPC(quests),
-		npcScripts:    newNPCScriptEngine(scriptsDir),
+		scripts:       newScriptEngine(),
 	}, nil
 }
 
@@ -310,7 +310,8 @@ func NewWorldWithRooms(rooms map[RoomID]*Room) *World {
 		roomSources:   make(map[RoomID]string, len(rooms)),
 		roomHistories: newRoomHistories(rooms),
 		quests:        make(map[string]*Quest),
-		npcScripts:    newNPCScriptEngine(""),
+		scripts:       newScriptEngine(),
+		areaMeta:      make(map[string]areaMetadata),
 	}
 }
 
@@ -450,14 +451,20 @@ func (w *World) AddPlayerForTest(p *Player) {
 }
 
 type areaFile struct {
-	Name  string `json:"name"`
-	Rooms []Room `json:"rooms"`
+	Name   string `json:"name"`
+	Script string `json:"script,omitempty"`
+	Rooms  []Room `json:"rooms"`
 }
 
-func loadRooms(areasPath string) (map[RoomID]*Room, map[RoomID]string, error) {
+type areaMetadata struct {
+	Name   string
+	Script string
+}
+
+func loadRooms(areasPath string) (map[RoomID]*Room, map[RoomID]string, map[string]areaMetadata, error) {
 	entries, err := os.ReadDir(areasPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("read areas: %w", err)
+		return nil, nil, nil, fmt.Errorf("read areas: %w", err)
 	}
 	names := make([]string, 0, len(entries))
 	for _, entry := range entries {
@@ -473,28 +480,29 @@ func loadRooms(areasPath string) (map[RoomID]*Room, map[RoomID]string, error) {
 
 	rooms := make(map[RoomID]*Room)
 	sources := make(map[RoomID]string)
+	areas := make(map[string]areaMetadata)
 	var builderFileName string
 	for _, name := range names {
 		if name == builderAreaFile {
 			builderFileName = name
 			continue
 		}
-		if err := loadAreaFile(areasPath, name, rooms, sources, false); err != nil {
-			return nil, nil, err
+		if err := loadAreaFile(areasPath, name, rooms, sources, areas, false); err != nil {
+			return nil, nil, nil, err
 		}
 	}
 	if builderFileName != "" {
-		if err := loadAreaFile(areasPath, builderFileName, rooms, sources, true); err != nil {
-			return nil, nil, err
+		if err := loadAreaFile(areasPath, builderFileName, rooms, sources, areas, true); err != nil {
+			return nil, nil, nil, err
 		}
 	}
 	if len(rooms) == 0 {
-		return nil, nil, fmt.Errorf("no rooms loaded")
+		return nil, nil, nil, fmt.Errorf("no rooms loaded")
 	}
-	return rooms, sources, nil
+	return rooms, sources, areas, nil
 }
 
-func loadAreaFile(areasPath, name string, rooms map[RoomID]*Room, sources map[RoomID]string, allowOverride bool) error {
+func loadAreaFile(areasPath, name string, rooms map[RoomID]*Room, sources map[RoomID]string, areas map[string]areaMetadata, allowOverride bool) error {
 	data, err := os.ReadFile(filepath.Join(areasPath, name))
 	if err != nil {
 		return fmt.Errorf("read area %s: %w", name, err)
@@ -503,6 +511,7 @@ func loadAreaFile(areasPath, name string, rooms map[RoomID]*Room, sources map[Ro
 	if err := json.Unmarshal(data, &file); err != nil {
 		return fmt.Errorf("decode area %s: %w", name, err)
 	}
+	areas[name] = areaMetadata{Name: file.Name, Script: strings.TrimSpace(file.Script)}
 	for i := range file.Rooms {
 		room := file.Rooms[i]
 		if room.ID == "" {
@@ -631,7 +640,21 @@ func (w *World) persistBuilderRoomsLocked() error {
 	sort.Slice(rooms, func(i, j int) bool {
 		return rooms[i].ID < rooms[j].ID
 	})
-	file := areaFile{Name: "Builder Rooms", Rooms: rooms}
+	name := "Builder Rooms"
+	script := ""
+	if w.areaMeta != nil {
+		if meta, ok := w.areaMeta[builderAreaFile]; ok {
+			if strings.TrimSpace(meta.Name) != "" {
+				name = meta.Name
+			}
+			script = meta.Script
+		}
+	}
+	file := areaFile{Name: name, Script: script, Rooms: rooms}
+	if w.areaMeta == nil {
+		w.areaMeta = make(map[string]areaMetadata)
+	}
+	w.areaMeta[builderAreaFile] = areaMetadata{Name: name, Script: script}
 	dir := filepath.Dir(w.builderPath)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create builder area directory: %w", err)
@@ -770,13 +793,14 @@ func (w *World) Reboot() ([]*Player, error) {
 	if w.areasPath == "" {
 		return nil, fmt.Errorf("world does not have an areas path configured")
 	}
-	rooms, sources, err := loadRooms(w.areasPath)
+	rooms, sources, areas, err := loadRooms(w.areasPath)
 	if err != nil {
 		return nil, err
 	}
 	w.rooms = rooms
 	w.roomSources = sources
 	w.roomHistories = newRoomHistories(rooms)
+	w.areaMeta = areas
 	if w.areasPath != "" {
 		w.builderPath = filepath.Join(w.areasPath, builderAreaFile)
 	}
@@ -793,6 +817,23 @@ func (w *World) GetRoom(id RoomID) (*Room, bool) {
 	defer w.mu.RUnlock()
 	r, ok := w.rooms[id]
 	return r, ok
+}
+
+func (w *World) areaMetadataForRoom(id RoomID) (areaMetadata, bool) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if w.roomSources == nil || w.areaMeta == nil {
+		return areaMetadata{}, false
+	}
+	source, ok := w.roomSources[id]
+	if !ok {
+		return areaMetadata{}, false
+	}
+	meta, ok := w.areaMeta[source]
+	if !ok {
+		return areaMetadata{}, false
+	}
+	return meta, true
 }
 
 func (w *World) BroadcastToRoom(room RoomID, msg string, except *Player) {
@@ -1277,7 +1318,7 @@ func (w *World) RoomNPCs(room RoomID) []NPC {
 }
 
 func (w *World) triggerNPCEnter(room RoomID, playerName string) {
-	if w == nil || w.npcScripts == nil {
+	if w == nil || w.scripts == nil {
 		return
 	}
 	npcs := w.RoomNPCs(room)
@@ -1293,13 +1334,49 @@ func (w *World) triggerNPCEnter(room RoomID, playerName string) {
 		if strings.TrimSpace(npc.Script) == "" {
 			continue
 		}
-		w.npcScripts.callOnEnter(w, room, npc, speaker)
+		w.scripts.callNPCOnEnter(w, room, npc, speaker)
 	}
+}
+
+func (w *World) triggerRoomEnter(room *Room, player *Player, via string) {
+	if w == nil || w.scripts == nil || room == nil {
+		return
+	}
+	w.scripts.callRoomOnEnter(w, room, player, via)
+}
+
+func (w *World) triggerAreaEnter(room *Room, player *Player, via string) {
+	if w == nil || w.scripts == nil || room == nil {
+		return
+	}
+	meta, ok := w.areaMetadataForRoom(room.ID)
+	if !ok {
+		return
+	}
+	w.scripts.callAreaOnEnter(w, meta, room, player, via)
+}
+
+func (w *World) TriggerRoomLook(player *Player) {
+	if w == nil || w.scripts == nil || player == nil {
+		return
+	}
+	room, ok := w.GetRoom(player.Room)
+	if !ok {
+		return
+	}
+	w.scripts.callRoomOnLook(w, room, player)
+}
+
+func (w *World) TriggerItemInspect(player *Player, room RoomID, item *Item, location string) {
+	if w == nil || w.scripts == nil {
+		return
+	}
+	w.scripts.callItemOnInspect(w, room, item, player, location)
 }
 
 // HandlePlayerSpeech notifies scripted NPCs that a player has spoken in their room.
 func (w *World) HandlePlayerSpeech(p *Player, message string) {
-	if w == nil || w.npcScripts == nil || p == nil {
+	if w == nil || w.scripts == nil || p == nil {
 		return
 	}
 	if strings.TrimSpace(message) == "" {
@@ -1318,7 +1395,7 @@ func (w *World) HandlePlayerSpeech(p *Player, message string) {
 		if strings.TrimSpace(npc.Script) == "" {
 			continue
 		}
-		w.npcScripts.callOnHear(w, p.Room, npc, speaker, message)
+		w.scripts.callNPCOnHear(w, p.Room, npc, speaker, message)
 	}
 }
 
