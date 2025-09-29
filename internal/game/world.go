@@ -100,6 +100,7 @@ type NPC struct {
 	MaxMana    int    `json:"max_mana,omitempty"`
 	Experience int    `json:"experience,omitempty"`
 	Loot       []Item `json:"loot,omitempty"`
+	Script     string `json:"script,omitempty"`
 }
 
 // ResetKind identifies the type of entity governed by a room reset.
@@ -117,6 +118,7 @@ type RoomReset struct {
 	Count       int       `json:"count,omitempty"`
 	AutoGreet   string    `json:"auto_greet,omitempty"`
 	Description string    `json:"description,omitempty"`
+	Script      string    `json:"script,omitempty"`
 }
 
 // Item represents an object that can exist in rooms or player inventories.
@@ -129,6 +131,7 @@ func normalizeNPC(n *NPC) {
 	if n == nil {
 		return
 	}
+	n.Script = strings.TrimSpace(n.Script)
 	if n.Level < 1 {
 		n.Level = 1
 	}
@@ -180,6 +183,7 @@ type World struct {
 	quests            map[string]*Quest
 	questsByNPC       map[string][]*Quest
 	portal            PortalProvider
+	npcScripts        *npcScriptEngine
 }
 
 // ActivePlayer returns the currently connected player with the provided name.
@@ -279,6 +283,10 @@ func NewWorld(areasPath string) (*World, error) {
 	if err != nil {
 		return nil, err
 	}
+	scriptsDir := ""
+	if strings.TrimSpace(areasPath) != "" {
+		scriptsDir = filepath.Join(filepath.Dir(areasPath), "scripts")
+	}
 	return &World{
 		rooms:         rooms,
 		players:       make(map[string]*Player),
@@ -289,6 +297,7 @@ func NewWorld(areasPath string) (*World, error) {
 		builderPath:   filepath.Join(areasPath, builderAreaFile),
 		quests:        quests,
 		questsByNPC:   indexQuestsByNPC(quests),
+		npcScripts:    newNPCScriptEngine(scriptsDir),
 	}, nil
 }
 
@@ -301,6 +310,7 @@ func NewWorldWithRooms(rooms map[RoomID]*Room) *World {
 		roomSources:   make(map[RoomID]string, len(rooms)),
 		roomHistories: newRoomHistories(rooms),
 		quests:        make(map[string]*Quest),
+		npcScripts:    newNPCScriptEngine(""),
 	}
 }
 
@@ -798,6 +808,28 @@ func (w *World) BroadcastToRoom(room RoomID, msg string, except *Player) {
 	}
 }
 
+func (w *World) sendToPlayer(name string, msg string) {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" || strings.TrimSpace(msg) == "" {
+		return
+	}
+	w.mu.RLock()
+	target, ok := w.players[trimmed]
+	if !ok || target == nil || !target.Alive {
+		w.mu.RUnlock()
+		return
+	}
+	output := target.Output
+	w.mu.RUnlock()
+	if output == nil {
+		return
+	}
+	select {
+	case output <- msg:
+	default:
+	}
+}
+
 func (w *World) BroadcastToRoomChannel(room RoomID, msg string, except *Player, channel Channel) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
@@ -1242,6 +1274,52 @@ func (w *World) RoomNPCs(room RoomID) []NPC {
 		normalizeNPC(&npcs[i])
 	}
 	return npcs
+}
+
+func (w *World) triggerNPCEnter(room RoomID, playerName string) {
+	if w == nil || w.npcScripts == nil {
+		return
+	}
+	npcs := w.RoomNPCs(room)
+	if len(npcs) == 0 {
+		return
+	}
+	trimmed := strings.TrimSpace(playerName)
+	var speaker *NPCSpeaker
+	if trimmed != "" {
+		speaker = &NPCSpeaker{Name: trimmed}
+	}
+	for _, npc := range npcs {
+		if strings.TrimSpace(npc.Script) == "" {
+			continue
+		}
+		w.npcScripts.callOnEnter(w, room, npc, speaker)
+	}
+}
+
+// HandlePlayerSpeech notifies scripted NPCs that a player has spoken in their room.
+func (w *World) HandlePlayerSpeech(p *Player, message string) {
+	if w == nil || w.npcScripts == nil || p == nil {
+		return
+	}
+	if strings.TrimSpace(message) == "" {
+		return
+	}
+	npcs := w.RoomNPCs(p.Room)
+	if len(npcs) == 0 {
+		return
+	}
+	trimmed := strings.TrimSpace(p.Name)
+	var speaker *NPCSpeaker
+	if trimmed != "" {
+		speaker = &NPCSpeaker{Name: trimmed}
+	}
+	for _, npc := range npcs {
+		if strings.TrimSpace(npc.Script) == "" {
+			continue
+		}
+		w.npcScripts.callOnHear(w, p.Room, npc, speaker, message)
+	}
 }
 
 // FindRoomNPC attempts to locate an NPC in the specified room by name.
@@ -1943,11 +2021,14 @@ func (w *World) UpsertRoomNPC(roomID RoomID, name, autoGreet string) (*NPC, erro
 	}
 	prevNPCs := append([]NPC(nil), room.NPCs...)
 	prevResets := append([]RoomReset(nil), room.Resets...)
+	existingIdx := findNPCIndex(room.NPCs, trimmed)
 	npc := NPC{Name: trimmed, AutoGreet: greet}
+	if existingIdx >= 0 {
+		npc.Script = room.NPCs[existingIdx].Script
+	}
 	normalizeNPC(&npc)
-	idx := findNPCIndex(room.NPCs, trimmed)
-	if idx >= 0 {
-		room.NPCs[idx] = npc
+	if existingIdx >= 0 {
+		room.NPCs[existingIdx] = npc
 	} else {
 		room.NPCs = append(room.NPCs, npc)
 	}
@@ -1955,11 +2036,12 @@ func (w *World) UpsertRoomNPC(roomID RoomID, name, autoGreet string) (*NPC, erro
 	if resetIdx >= 0 {
 		room.Resets[resetIdx].Name = trimmed
 		room.Resets[resetIdx].AutoGreet = greet
+		room.Resets[resetIdx].Script = npc.Script
 		if room.Resets[resetIdx].Count < 1 {
 			room.Resets[resetIdx].Count = 1
 		}
 	} else {
-		room.Resets = append(room.Resets, RoomReset{Kind: ResetKindNPC, Name: trimmed, AutoGreet: greet, Count: 1})
+		room.Resets = append(room.Resets, RoomReset{Kind: ResetKindNPC, Name: trimmed, AutoGreet: greet, Count: 1, Script: npc.Script})
 	}
 	prevSource, hadSource := w.markRoomAsBuilderLocked(roomID)
 	if err := w.persistBuilderRoomsLocked(); err != nil {
@@ -2208,7 +2290,7 @@ func (w *World) applyRoomResetsLocked(room *Room) {
 		}
 		switch reset.Kind {
 		case ResetKindNPC:
-			npc := NPC{Name: reset.Name, AutoGreet: reset.AutoGreet}
+			npc := NPC{Name: reset.Name, AutoGreet: reset.AutoGreet, Script: reset.Script}
 			normalizeNPC(&npc)
 			idx := findNPCIndex(room.NPCs, reset.Name)
 			if idx >= 0 {

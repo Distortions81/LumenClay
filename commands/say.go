@@ -25,5 +25,6 @@ var Say = Define(Definition{
 	self := game.Ansi(fmt.Sprintf("\r\n%s %s", game.Style("You say:", game.AnsiBold, game.AnsiYellow), msg))
 	ctx.Player.Output <- self
 	ctx.World.RecordPlayerChannelMessage(ctx.Player, game.ChannelSay, self)
+	ctx.World.HandlePlayerSpeech(ctx.Player, msg)
 	return false
 })

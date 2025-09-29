@@ -152,3 +152,30 @@ To add new content:
 4. Rebuild or restart the server after saving your changes. Because the area files are embedded at compile time, live servers must be restarted (or admins can run `reboot` after recompiling) to load new room data.
 
 With these steps you can grow the world organically while keeping the server lightweight and easy to run.
+
+## NPC scripting
+
+NPCs can run lightweight scripts interpreted by [Yaegi](https://github.com/traefik/yaegi).
+Adding a `"script"` field to an NPC entry points the server at a matching Go source file
+stored under [`data/scripts/`](data/scripts/). For example, setting
+`"script": "wayfinder_ghal"` loads `data/scripts/wayfinder_ghal.yaegi`.
+
+Each script can optionally implement the following hook functions:
+
+- `func OnEnter(ctx map[string]any)` runs whenever a player enters the room.
+- `func OnHear(ctx map[string]any)` runs after a player speaks with the `say` command in that room.
+
+The `ctx` map exposes several helpers:
+
+| Key        | Type                | Description |
+|------------|---------------------|-------------|
+| `"say"`    | `func(string)`      | Broadcast a line to the room as the NPC. |
+| `"emote"`  | `func(string)`      | Perform an emote-style action. |
+| `"tell"`   | `func(string)`      | Whisper privately to the speaking player, if any. |
+| `"speaker"`| `string`            | Name of the triggering player, or an empty string. |
+| `"message"`| `string`            | Raw text the player spoke (only set for `OnHear`). |
+| `"npc"`    | `string`            | NPC name. |
+| `"room"`   | `string`            | Room identifier. |
+
+Scripts can combine these helpers with standard library packages such as `strings`
+to build branching dialogue without needing to import any project-specific APIs.

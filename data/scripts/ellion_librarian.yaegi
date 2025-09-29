@@ -1,0 +1,34 @@
+package main
+
+import "strings"
+
+func OnEnter(ctx map[string]any) {
+    say := ctx["say"].(func(string))
+    tell := ctx["tell"].(func(string))
+    speaker := ctx["speaker"].(string)
+    if speaker == "" {
+        say("Knowledge welcomes every steady hand.")
+        return
+    }
+    say("Mind the hush between the stacks, " + speaker + ".")
+    tell("Ask me about the catalog or the sealed wing if you seek deeper passages.")
+}
+
+func OnHear(ctx map[string]any) {
+    speaker := ctx["speaker"].(string)
+    if speaker == "" {
+        return
+    }
+    message, _ := ctx["message"].(string)
+    msg := strings.ToLower(message)
+    tell := ctx["tell"].(func(string))
+    say := ctx["say"].(func(string))
+    switch {
+    case strings.Contains(msg, "catalog"):
+        tell("Think of a title and whisper it to the lattice. It will light the correct shelf for you.")
+    case strings.Contains(msg, "sealed wing"):
+        say("The sealed wing opens when three observatory citations glow at once. Keep your promises to the sky.")
+    case strings.Contains(msg, "quest"):
+        tell("Quests? Follow the star-scribed map upstairs; it brightens around untaken tasks.")
+    }
+}

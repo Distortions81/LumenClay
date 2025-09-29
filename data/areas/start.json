@@ -41,7 +41,8 @@
         },
         {
           "name": "Wayfinder Ghal",
-          "auto_greet": "New paths have opened today. I can hum their resonances for you if you promise to return with a story."
+          "auto_greet": "New paths have opened today. I can hum their resonances for you if you promise to return with a story.",
+          "script": "wayfinder_ghal"
         }
       ]
     },
