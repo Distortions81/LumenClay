@@ -72,6 +72,8 @@ TLS certificate and key. Override the default port or certificate bundle if you 
 - `-web-addr PORT` &mdash; listen on a custom HTTPS port while keeping the host from `-addr`.
 - `-web-cert auto` &mdash; reuse the `-cert` path (default).
 - `-web-cert PATH` &mdash; point the portal to a different certificate directory or bundle.
+- `-web-base-url https://staff.example.com` &mdash; publish the portal through an external HTTPS origin (for example, a reverse
+  proxy). The server appends `/portal/<token>` to this base when it issues one-use links.
 
 The server generates a self-signed certificate the first time it starts if the specified
 files do not exist and reuses that certificate afterwards.
