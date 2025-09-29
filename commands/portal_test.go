@@ -62,3 +62,18 @@ func TestPortalCommandGeneratesLink(t *testing.T) {
 		t.Fatalf("portal requested role %q, want %q", fake.lastRole, game.PortalRoleModerator)
 	}
 }
+
+func TestSelectPortalRoleForPlayers(t *testing.T) {
+	traveler := newTestPlayer("Traveler", "start")
+	role, ok := selectPortalRole(traveler, "")
+	if !ok || role != game.PortalRolePlayer {
+		t.Fatalf("default role = %q ok=%v, want %q true", role, ok, game.PortalRolePlayer)
+	}
+	role, ok = selectPortalRole(traveler, "notes")
+	if !ok || role != game.PortalRolePlayer {
+		t.Fatalf("notes role = %q ok=%v, want %q true", role, ok, game.PortalRolePlayer)
+	}
+	if role, ok = selectPortalRole(traveler, "builder"); ok || role != "" {
+		t.Fatalf("unauthorized builder request returned role %q ok=%v", role, ok)
+	}
+}
