@@ -44,6 +44,8 @@ func EnterRoom(world *World, p *Player, via string) {
 			p.Output <- Ansi(msg)
 		}
 	}
+	world.triggerAreaEnter(r, p, via)
+	world.triggerRoomEnter(r, p, via)
 	world.triggerNPCEnter(p.Room, p.Name)
 	p.Output <- Prompt(p)
 }

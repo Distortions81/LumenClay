@@ -153,29 +153,76 @@ To add new content:
 
 With these steps you can grow the world organically while keeping the server lightweight and easy to run.
 
-## NPC scripting
+## World scripting
 
-NPCs can run lightweight scripts interpreted by [Yaegi](https://github.com/traefik/yaegi).
-Adding a `"script"` field to an NPC entry points the server at a matching Go source file
-stored under [`data/scripts/`](data/scripts/). For example, setting
-`"script": "wayfinder_ghal"` loads `data/scripts/wayfinder_ghal.yaegi`.
+Areas, rooms, NPCs, and items can all run lightweight Go scripts interpreted by
+[Yaegi](https://github.com/traefik/yaegi). Each object stores its script directly in
+the world JSON under a `"script"` field containing a small `package main` snippet.
+Scripts are compiled the first time the server needs them and cached for later reuse.
 
-Each script can optionally implement the following hook functions:
+### NPC hooks
 
-- `func OnEnter(ctx map[string]any)` runs whenever a player enters the room.
-- `func OnHear(ctx map[string]any)` runs after a player speaks with the `say` command in that room.
+NPC scripts can expose:
 
-The `ctx` map exposes several helpers:
+- `func OnEnter(ctx map[string]any)` whenever a player enters the room.
+- `func OnHear(ctx map[string]any)` after a player uses the `say` command in that room.
 
-| Key        | Type                | Description |
-|------------|---------------------|-------------|
-| `"say"`    | `func(string)`      | Broadcast a line to the room as the NPC. |
-| `"emote"`  | `func(string)`      | Perform an emote-style action. |
-| `"tell"`   | `func(string)`      | Whisper privately to the speaking player, if any. |
-| `"speaker"`| `string`            | Name of the triggering player, or an empty string. |
-| `"message"`| `string`            | Raw text the player spoke (only set for `OnHear`). |
-| `"npc"`    | `string`            | NPC name. |
-| `"room"`   | `string`            | Room identifier. |
+The context map provides:
 
-Scripts can combine these helpers with standard library packages such as `strings`
-to build branching dialogue without needing to import any project-specific APIs.
+| Key          | Type           | Description |
+|--------------|----------------|-------------|
+| `"say"`      | `func(string)` | Broadcast a line to the room as the NPC. |
+| `"emote"`    | `func(string)` | Perform an emote-style action. |
+| `"tell"`     | `func(string)` | Whisper privately to the speaking player, if any. |
+| `"speaker"`  | `string`       | Name of the triggering player, or an empty string. |
+| `"message"`  | `string`       | Raw text the player spoke (only set for `OnHear`). |
+| `"npc"`      | `string`       | NPC name. |
+| `"room"`     | `string`       | Room identifier. |
+
+### Room hooks
+
+Rooms may define:
+
+- `func OnEnter(ctx map[string]any)` after the description is shown to an entering player.
+- `func OnLook(ctx map[string]any)` whenever someone `look`s without a target.
+
+Room contexts include:
+
+| Key          | Type           | Description |
+|--------------|----------------|-------------|
+| `"narrate"`  | `func(string)` | Send italicized narration to the triggering player. |
+| `"broadcast"`| `func(string)` | Send an atmospheric line to everyone in the room. |
+| `"room"`     | `string`       | Room identifier. |
+| `"player"`   | `string`       | Player name, if available. |
+| `"via"`      | `string`       | Direction or method the player used to arrive. |
+| `"hook"`     | `string`       | Name of the hook that fired (e.g. `OnEnter`). |
+
+### Area hooks
+
+Area scripts run when a player enters any room sourced from that area file.
+They support `func OnEnter(ctx map[string]any)` with access to:
+
+| Key          | Type           | Description |
+|--------------|----------------|-------------|
+| `"narrate"`  | `func(string)` | Send a private ambient line to the player. |
+| `"broadcast"`| `func(string)` | Share a message with the whole room. |
+| `"area"`     | `string`       | Area display name. |
+| `"room"`     | `string`       | Room identifier. |
+| `"player"`   | `string`       | Player name, if available. |
+| `"via"`      | `string`       | Direction or method the player used to arrive. |
+
+### Item hooks
+
+Items can implement `func OnInspect(ctx map[string]any)`, which runs when a player
+examines an item in the room or in their inventory. The context offers:
+
+| Key          | Type           | Description |
+|--------------|----------------|-------------|
+| `"describe"` | `func(string)` | Append additional flavor text for the inspecting player. |
+| `"item"`     | `string`       | Item name. |
+| `"room"`     | `string`       | Room identifier, if applicable. |
+| `"where"`    | `string`       | Location hint (`"room"` or `"inventory"`). |
+| `"player"`   | `string`       | Player name, if available. |
+
+Scripts can freely import Go standard library packages (such as `strings`) and compose
+these helpers to build rich behaviors without referencing internal engine code.

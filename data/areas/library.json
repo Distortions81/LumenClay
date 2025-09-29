@@ -31,7 +31,7 @@
         {
           "name": "First Librarian Ellion",
           "auto_greet": "Knowledge is a kiln—feed it questions and it warms everyone nearby.",
-          "script": "ellion_librarian"
+          "script": "package main\n\nimport \"strings\"\n\nfunc OnEnter(ctx map[string]any) {\n    say := ctx[\"say\"].(func(string))\n    tell := ctx[\"tell\"].(func(string))\n    speaker := ctx[\"speaker\"].(string)\n    if speaker == \"\" {\n        say(\"Knowledge welcomes every steady hand.\")\n        return\n    }\n    say(\"Mind the hush between the stacks, \" + speaker + ".\")\n    tell(\"Ask me about the catalog or the sealed wing if you seek deeper passages.\")\n}\n\nfunc OnHear(ctx map[string]any) {\n    speaker := ctx[\"speaker\"].(string)\n    if speaker == \"\" {\n        return\n    }\n    message, _ := ctx[\"message\"].(string)\n    msg := strings.ToLower(message)\n    tell := ctx[\"tell\"].(func(string))\n    say := ctx[\"say\"].(func(string))\n    switch {\n    case strings.Contains(msg, \"catalog\"):\n        tell(\"Think of a title and whisper it to the lattice. It will light the correct shelf for you.\")\n    case strings.Contains(msg, \"sealed wing\"):\n        say(\"The sealed wing opens when three observatory citations glow at once. Keep your promises to the sky.\")\n    case strings.Contains(msg, \"quest\"):\n        tell(\"Quests? Follow the star-scribed map upstairs; it brightens around untaken tasks.\")\n    }\n}\n"
         }
       ]
     },
