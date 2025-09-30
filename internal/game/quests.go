@@ -441,6 +441,41 @@ func (w *World) RecordNPCKill(p *Player, npc NPC) []QuestProgressUpdate {
 	return updates
 }
 
+// FormatQuestKillUpdates renders quest progress updates into player-facing messages.
+func FormatQuestKillUpdates(updates []QuestProgressUpdate) []string {
+	if len(updates) == 0 {
+		return nil
+	}
+	messages := make([]string, 0, len(updates)*2)
+	for _, update := range updates {
+		for _, prog := range update.KillProgress {
+			line := fmt.Sprintf("[Quest] %s: %s (%d/%d)",
+				HighlightQuestName(update.Quest.Name),
+				HighlightNPCName(prog.NPC),
+				prog.Current,
+				prog.Required,
+			)
+			messages = append(messages, line)
+		}
+		if update.KillsCompleted {
+			turnIn := strings.TrimSpace(update.Quest.TurnIn)
+			if turnIn == "" {
+				turnIn = update.Quest.Giver
+			}
+			if trimmed := strings.TrimSpace(turnIn); trimmed != "" {
+				messages = append(messages, fmt.Sprintf("[Quest] %s objectives complete. Visit %s to turn in.",
+					HighlightQuestName(update.Quest.Name),
+					HighlightNPCName(trimmed),
+				))
+			} else {
+				messages = append(messages, fmt.Sprintf("[Quest] %s objectives complete.",
+					HighlightQuestName(update.Quest.Name)))
+			}
+		}
+	}
+	return messages
+}
+
 // CompleteQuest checks requirements and awards quest rewards.
 func (w *World) CompleteQuest(p *Player, questID string) (*QuestCompletionResult, error) {
 	trimmed := strings.ToLower(strings.TrimSpace(questID))

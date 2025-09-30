@@ -772,6 +772,129 @@ func TestListPlayersUsesLoginOrder(t *testing.T) {
 	}
 }
 
+func TestStartCombatPlayerVsNPC(t *testing.T) {
+	rooms := map[RoomID]*Room{
+		StartRoom: {
+			ID: StartRoom,
+			NPCs: []NPC{{
+				Name:      "Goblin Scout",
+				Level:     1,
+				Health:    20,
+				MaxHealth: 20,
+			}},
+		},
+	}
+	world := NewWorldWithRooms(rooms)
+	player := &Player{Name: "Hero", Room: StartRoom, Output: make(chan string, 10), Alive: true, Level: 1}
+	world.AddPlayerForTest(player)
+
+	npc := rooms[StartRoom].NPCs[0]
+	expectedPlayerDamage := player.AttackDamage()
+	expectedNPCDamage := npc.AttackDamage()
+
+	if err := world.StartCombat(player, "goblin"); err != nil {
+		t.Fatalf("StartCombat: %v", err)
+	}
+
+	if got, want := player.Health, player.MaxHealth-expectedNPCDamage; got != want {
+		t.Fatalf("player health = %d, want %d", got, want)
+	}
+
+	world.mu.RLock()
+	remaining := world.rooms[StartRoom].NPCs[0].Health
+	combat := world.combats[StartRoom]
+	world.mu.RUnlock()
+
+	if got, want := remaining, npc.Health-expectedPlayerDamage; got != want {
+		t.Fatalf("npc health = %d, want %d", got, want)
+	}
+	if combat == nil {
+		t.Fatalf("expected combat to remain active while both combatants live")
+	}
+
+	world.finishCombat(StartRoom, combat)
+}
+
+func TestStartCombatNPCKillEndsCombat(t *testing.T) {
+	rooms := map[RoomID]*Room{
+		StartRoom: {
+			ID: StartRoom,
+			NPCs: []NPC{{
+				Name:      "Goblin Chief",
+				Level:     1,
+				Health:    8,
+				MaxHealth: 8,
+			}},
+		},
+	}
+	world := NewWorldWithRooms(rooms)
+	player := &Player{Name: "Hero", Room: StartRoom, Output: make(chan string, 10), Alive: true, Level: 5}
+	world.AddPlayerForTest(player)
+
+	if err := world.StartCombat(player, "chief"); err != nil {
+		t.Fatalf("StartCombat: %v", err)
+	}
+
+	if _, ok := world.FindRoomNPC(StartRoom, "chief"); ok {
+		t.Fatalf("expected NPC to be defeated")
+	}
+	if player.Experience <= 0 {
+		t.Fatalf("expected experience to increase after defeating NPC")
+	}
+
+	world.mu.RLock()
+	_, ok := world.combats[StartRoom]
+	world.mu.RUnlock()
+	if ok {
+		t.Fatalf("combat should end once the NPC is defeated")
+	}
+}
+
+func TestStartCombatPlayerVsPlayer(t *testing.T) {
+	rooms := map[RoomID]*Room{StartRoom: {ID: StartRoom}}
+	world := NewWorldWithRooms(rooms)
+
+	alpha := &Player{Name: "Alpha", Room: StartRoom, Output: make(chan string, 10), Alive: true, Level: 2}
+	bravo := &Player{Name: "Bravo", Room: StartRoom, Output: make(chan string, 10), Alive: true, Level: 2}
+
+	world.AddPlayerForTest(alpha)
+	world.AddPlayerForTest(bravo)
+
+	damageAlpha := alpha.AttackDamage()
+	damageBravo := bravo.AttackDamage()
+
+	if err := world.StartCombat(alpha, "bravo"); err != nil {
+		t.Fatalf("StartCombat: %v", err)
+	}
+
+	if got, want := alpha.Health, alpha.MaxHealth-damageBravo; got != want {
+		t.Fatalf("alpha health = %d, want %d", got, want)
+	}
+	if got, want := bravo.Health, bravo.MaxHealth-damageAlpha; got != want {
+		t.Fatalf("bravo health = %d, want %d", got, want)
+	}
+
+	world.mu.RLock()
+	combat := world.combats[StartRoom]
+	world.mu.RUnlock()
+	if combat == nil {
+		t.Fatalf("expected combat to persist for player duel")
+	}
+
+	world.finishCombat(StartRoom, combat)
+}
+
+func TestStartCombatUnknownTarget(t *testing.T) {
+	rooms := map[RoomID]*Room{StartRoom: {ID: StartRoom}}
+	world := NewWorldWithRooms(rooms)
+	player := &Player{Name: "Hero", Room: StartRoom, Output: make(chan string, 10), Alive: true, Level: 1}
+	world.AddPlayerForTest(player)
+
+	if err := world.StartCombat(player, "phantom"); err == nil {
+		t.Fatalf("expected error when target is missing")
+	}
+}
+
 func TestWorldCommandDisableToggle(t *testing.T) {
 	world := NewWorldWithRooms(nil)
 	if world.CommandDisabled("say") {

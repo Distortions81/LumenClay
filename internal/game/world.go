@@ -157,6 +157,24 @@ func normalizeNPC(n *NPC) {
 	}
 }
 
+// EnsureStats clamps the NPC's stats to sensible defaults.
+func (n *NPC) EnsureStats() {
+	normalizeNPC(n)
+}
+
+// AttackDamage returns the base melee damage inflicted by the NPC.
+func (n *NPC) AttackDamage() int {
+	if n == nil {
+		return 1
+	}
+	n.EnsureStats()
+	damage := 4 + n.Level*2
+	if damage < 1 {
+		damage = 1
+	}
+	return damage
+}
+
 // StartRoom is the default entry point for new players.
 const StartRoom RoomID = "start"
 
@@ -172,6 +190,7 @@ type World struct {
 	rooms             map[RoomID]*Room
 	players           map[string]*Player
 	playerOrder       []string
+	combats           map[RoomID]*combatInstance
 	areasPath         string
 	accounts          *AccountManager
 	mail              *MailSystem
@@ -290,6 +309,7 @@ func NewWorld(areasPath string) (*World, error) {
 		rooms:         rooms,
 		players:       make(map[string]*Player),
 		playerOrder:   make([]string, 0),
+		combats:       make(map[RoomID]*combatInstance),
 		areasPath:     areasPath,
 		roomSources:   sources,
 		areaMeta:      areas,
@@ -307,6 +327,7 @@ func NewWorldWithRooms(rooms map[RoomID]*Room) *World {
 		rooms:         rooms,
 		players:       make(map[string]*Player),
 		playerOrder:   make([]string, 0),
+		combats:       make(map[RoomID]*combatInstance),
 		roomSources:   make(map[RoomID]string, len(rooms)),
 		roomHistories: newRoomHistories(rooms),
 		quests:        make(map[string]*Quest),
@@ -1546,6 +1567,173 @@ func (w *World) ApplyDamageToPlayer(attacker *Player, targetName string, damage 
 		target.Health = remaining
 	}
 	return result, nil
+}
+
+// ApplyDamageFromNPC reduces a player's health when attacked by an NPC in the provided room.
+func (w *World) ApplyDamageFromNPC(room RoomID, npcName string, target *Player, damage int) (*PlayerDamageResult, error) {
+	trimmed := strings.TrimSpace(npcName)
+	if trimmed == "" {
+		return nil, fmt.Errorf("attacker must not be empty")
+	}
+	if target == nil {
+		return nil, fmt.Errorf("target required")
+	}
+	if damage <= 0 {
+		return nil, fmt.Errorf("damage must be positive")
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	stored, ok := w.players[target.Name]
+	if !ok || stored != target || !target.Alive {
+		return nil, fmt.Errorf("no such opponent here")
+	}
+	if target.Room != room {
+		return nil, fmt.Errorf("no such opponent here")
+	}
+
+	target.EnsureStats()
+	if damage > target.Health {
+		damage = target.Health
+	}
+
+	previous := target.Room
+	target.Health -= damage
+	defeated := target.Health <= 0
+	remaining := target.Health
+	if remaining < 0 {
+		remaining = 0
+	}
+
+	result := &PlayerDamageResult{
+		Target:       target,
+		Damage:       damage,
+		Defeated:     defeated,
+		PreviousRoom: previous,
+		Remaining:    remaining,
+	}
+
+	if defeated {
+		if target.Home == "" {
+			target.Home = StartRoom
+		}
+		target.Room = target.Home
+		target.EnsureStats()
+		target.Health = target.MaxHealth
+		target.Mana = target.MaxMana
+	} else {
+		target.EnsureStats()
+		target.Health = remaining
+	}
+
+	return result, nil
+}
+
+func (w *World) ensureCombat(room RoomID) *combatInstance {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.combats == nil {
+		w.combats = make(map[RoomID]*combatInstance)
+	}
+	combat, ok := w.combats[room]
+	if !ok {
+		combat = newCombatInstance(w, room)
+		w.combats[room] = combat
+	}
+	return combat
+}
+
+func (w *World) finishCombat(room RoomID, combat *combatInstance) {
+	w.mu.Lock()
+	if w.combats != nil {
+		current, ok := w.combats[room]
+		if ok && current == combat {
+			delete(w.combats, room)
+			if len(w.combats) == 0 {
+				w.combats = nil
+			}
+		}
+	}
+	w.mu.Unlock()
+	if combat != nil {
+		combat.stopLoop()
+	}
+}
+
+// StartCombat engages the attacker with the specified target and schedules automatic rounds.
+func (w *World) StartCombat(attacker *Player, targetName string) error {
+	if attacker == nil {
+		return fmt.Errorf("attacker required")
+	}
+	if !attacker.Alive {
+		return fmt.Errorf("you are in no condition to fight")
+	}
+
+	trimmed := strings.TrimSpace(targetName)
+	if trimmed == "" {
+		return fmt.Errorf("target must not be empty")
+	}
+
+	attacker.EnsureStats()
+
+	if npc, ok := w.FindRoomNPC(attacker.Room, trimmed); ok {
+		combat := w.ensureCombat(attacker.Room)
+		combat.addPlayer(attacker.Name, combatTarget{kind: combatTargetNPC, name: npc.Name})
+		combat.addNPC(npc.Name, combatTarget{kind: combatTargetPlayer, name: attacker.Name})
+
+		if attacker.Output != nil {
+			attacker.Output <- Ansi(fmt.Sprintf("\r\nYou engage %s in combat!", HighlightNPCName(npc.Name)))
+		}
+		w.BroadcastToRoom(attacker.Room, Ansi(fmt.Sprintf("\r\n%s engages %s in combat!", HighlightName(attacker.Name), HighlightNPCName(npc.Name))), attacker)
+
+		if !combat.executeRound() {
+			w.finishCombat(attacker.Room, combat)
+			return nil
+		}
+		combat.startLoop()
+		return nil
+	}
+
+	w.mu.RLock()
+	candidates := make([]string, 0, len(w.players))
+	matches := make([]*Player, 0, len(w.players))
+	for _, p := range w.players {
+		if p == attacker || !p.Alive || p.Room != attacker.Room {
+			continue
+		}
+		candidates = append(candidates, p.Name)
+		matches = append(matches, p)
+	}
+	w.mu.RUnlock()
+	if len(candidates) == 0 {
+		return fmt.Errorf("no such opponent here")
+	}
+	idx, ok := uniqueMatch(trimmed, candidates, true)
+	if !ok || idx < 0 || idx >= len(matches) {
+		return fmt.Errorf("no such opponent here")
+	}
+	target := matches[idx]
+
+	combat := w.ensureCombat(attacker.Room)
+	combat.addPlayer(attacker.Name, combatTarget{kind: combatTargetPlayer, name: target.Name})
+	combat.addPlayer(target.Name, combatTarget{kind: combatTargetPlayer, name: attacker.Name})
+
+	if attacker.Output != nil {
+		attacker.Output <- Ansi(fmt.Sprintf("\r\nYou engage %s in combat!", HighlightName(target.Name)))
+	}
+	if target.Output != nil {
+		target.Output <- Ansi(fmt.Sprintf("\r\n%s engages you in combat!", HighlightName(attacker.Name)))
+	}
+	w.BroadcastToRoom(attacker.Room, Ansi(fmt.Sprintf("\r\n%s engages %s in combat!", HighlightName(attacker.Name), HighlightName(target.Name))), attacker)
+
+	if !combat.executeRound() {
+		w.finishCombat(attacker.Room, combat)
+		return nil
+	}
+	combat.startLoop()
+	return nil
 }
 
 // AwardExperience grants experience to a player and reports level gains.
